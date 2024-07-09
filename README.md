@@ -13,6 +13,43 @@ Overall architecture of LMSeg. (a). Input mesh is converted into barycentric dua
 
 Conda environment to run the code has exported to **requirements.yaml**.
 
+## **Dataset**
+
+```text
+data
+├── BudjBimWall
+│   ├── mesh
+│   │   ├── area1
+│   │   ├── area2
+│   │   ├── area3
+│   │   ├── area4
+│   │   ├── area5
+│   │   ├── area6
+│   │   └── processed
+│   │       ├── area1
+│   │       ├── area2
+│   │       ├── area3
+│   │       ├── area4
+│   │       ├── area5
+│   │       └── area6
+│   └── pcd
+│       ├── area1
+│       ├── area2
+│       ├── area3
+│       ├── area4
+│       ├── area5
+│       └── area6
+├── SUM
+    ├── processed
+    │   ├── test
+    │   ├── train
+    │   └── validate
+    └── raw
+        ├── test
+        ├── train
+        └── validate
+```
+
 ## **Model Training**
 
 ```bash
