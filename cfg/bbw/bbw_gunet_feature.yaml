@@ -1,0 +1,28 @@
+# dataset
+dataset: bbw
+load_feature: all
+batch: 4
+workers: 9
+
+# train config
+epoch: 150
+patience: 150
+lr: 0.005
+w_decay: 0.0001
+device: cuda
+
+# model
+in_channels: 18
+hid_channels: 256
+out_channels: 1
+depth: 4
+pool_ratios:
+  - 0.9
+  - 0.7
+  - 0.6
+  - 0.5
+sum_res: False
+act: 'relu'
+
+# save
+path: save/bbw/bbw_gunet_feature

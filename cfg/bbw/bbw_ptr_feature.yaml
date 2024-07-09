@@ -1,0 +1,27 @@
+# dataset
+dataset: bbw
+load_feature: all
+batch: 4
+workers: 9
+
+# train config
+epoch: 150
+patience: 150
+lr: 0.005
+w_decay: 0.0001
+device: cuda
+
+# model
+in_channels: 18
+out_channels: 1
+hid_channels:
+  - 32
+  - 64
+  - 128
+  - 256
+  - 512
+pool_ratio: 0.25
+num_nbrs: 16
+
+# save
+path: save/bbw/bbw_ptr_feature
