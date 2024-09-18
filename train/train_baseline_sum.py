@@ -22,7 +22,7 @@ if __name__ == '__main__':
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
                         default='data/SUM',
-                        help='path to config file')
+                        help='path to dataset folder')
     args = parser.parse_args()
     
     
