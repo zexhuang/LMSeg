@@ -45,15 +45,18 @@ if __name__ == '__main__':
         train_loader = DataLoader(train_set, 
                                   batch_size=cfg['batch'], 
                                   shuffle=True, 
-                                  num_workers=cfg['workers'])   
+                                  num_workers=cfg['workers'],
+                                  drop_last=True)   
         val_loader = DataLoader(val_set, 
                                 batch_size=cfg['batch'], 
-                                shuffle=False, 
-                                num_workers=cfg['workers'])
+                                shuffle=True, 
+                                num_workers=cfg['workers'],
+                                drop_last=True)
         test_loader = DataLoader(test_set, 
                                  batch_size=cfg['batch'], 
                                  shuffle=False, 
-                                 num_workers=cfg['workers'])
+                                 num_workers=cfg['workers'],
+                                 drop_last=False)
         
         model = PointNetSeg(cfg['in_channels'], 
                             cfg['out_channels'])
