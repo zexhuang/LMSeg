@@ -5,7 +5,7 @@ import torch.utils.data
 import torch.nn.functional as F
 
 from torch_geometric.utils import to_dense_batch
-from .pointnet_utils import PointNetEncoder, feature_transform_reguliarzer
+from .pointnet_utils import PointNetEncoder
 
 
 class PointNetSeg(nn.Module):
@@ -23,9 +23,13 @@ class PointNetSeg(nn.Module):
         self.bn3 = nn.BatchNorm1d(128)
 
     def forward(self, data):
-        x = to_dense_batch(data.x, data.batch, batch_size=data.batch_size)[0]
+        pos, x, batch, batch_size = data.pos, data.x, data.batch, data.batch_size
+        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        
+        x = to_dense_batch(x, batch, batch_size=batch_size)[0]
         x = x.permute(0,2,1)
         batch_size, num_points = x.size()[0], x.size()[-1]
+        
         x, _, trans_feat = self.feat(x)
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
