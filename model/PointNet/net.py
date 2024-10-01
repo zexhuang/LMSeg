@@ -33,5 +33,5 @@ class PointNetSeg(nn.Module):
         x = self.conv4(x)
         x = x.transpose(2, 1).contiguous()
         y = x.view(batch_size * num_points, self.out_channels)
-        return {'y': (y, trans_feat)} 
+        return {'y': (y, trans_feat)} if self.training else {'y': y}
 
