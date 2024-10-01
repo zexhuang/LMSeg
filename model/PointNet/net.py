@@ -9,10 +9,11 @@ from .pointnet_utils import PointNetEncoder
 
 
 class PointNetSeg(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int):
+    def __init__(self, in_channels: int, out_channels: int, get_trans_feat: bool = True):
         super(PointNetSeg, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
+        self.get_trans_feat = get_trans_feat
         self.feat = PointNetEncoder(global_feat=False, feature_transform=True, channel=in_channels)
         self.conv1 = torch.nn.Conv1d(1088, 512, 1)
         self.conv2 = torch.nn.Conv1d(512, 256, 1)
@@ -37,5 +38,5 @@ class PointNetSeg(nn.Module):
         x = self.conv4(x)
         x = x.transpose(2, 1).contiguous()
         y = x.view(batch_size * num_points, self.out_channels)
-        return {'y': (y, trans_feat)} if self.training else {'y': y}
+        return {'y': (y, trans_feat)} if self.get_trans_feat else {'y': y}
 

@@ -61,7 +61,8 @@ if __name__ == '__main__':
                                  drop_last=False)
         
         model = PointNetSeg(cfg['in_channels'], 
-                            cfg['out_channels'])
+                            cfg['out_channels'],
+                            get_trans_feat=True)
         loss = BCERegLoss()
 
         trainer = Trainer(cfg=cfg) 
@@ -69,6 +70,8 @@ if __name__ == '__main__':
                     criterion=loss,
                     train_loader=train_loader, 
                     val_loader=val_loader)
+        
+        model.get_trans_feat = False
         trainer.eval(model, 
                      test_loader, 
                      ckpt=f"epoch{cfg['epoch']}",
