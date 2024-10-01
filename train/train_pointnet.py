@@ -31,16 +31,18 @@ if __name__ == '__main__':
         
         train_set = BudjBimWallMeshDataset(root=args.root, 
                                            split='train', 
-                                           load_feature=cfg['load_feature'],
-                                           transform=T.FixedPoints(num=cfg['num_points']))
+                                           load_feature=cfg['load_feature'])
+        train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+        
         val_set = BudjBimWallMeshDataset(root=args.root, 
                                          split='val', 
-                                         load_feature=cfg['load_feature'],
-                                         transform=T.FixedPoints(num=cfg['num_points']))
+                                         load_feature=cfg['load_feature'])
+        val_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+        
         test_set = BudjBimWallMeshDataset(root=args.root, 
                                           split='test', 
-                                          load_feature=cfg['load_feature'],
-                                          transform=T.FixedPoints(num=cfg['num_points']))
+                                          load_feature=cfg['load_feature'])
+        test_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
             
         train_loader = DataLoader(train_set, 
                                   batch_size=cfg['batch'], 

@@ -8,7 +8,7 @@ num_points: 20000
 # train config
 epoch: 100
 patience: 100
-lr: 0.001
+lr: 0.01
 w_decay: 0.0001
 device: cuda
 
