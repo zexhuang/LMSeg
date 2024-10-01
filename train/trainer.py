@@ -39,7 +39,6 @@ class Trainer:
             ckpt: Union[str, Path, None]=None,
             save_period: int=10):
         summary(model, depth=100)
-        model.to(self.device)  
         model.load_state_dict(self._load_ckpt(ckpt, self.device)['params']) if ckpt else model  
         criterion = torch.nn.CrossEntropyLoss() if criterion == None else criterion
         
@@ -52,6 +51,7 @@ class Trainer:
         self.writer = SummaryWriter(log_dir=f'{self.path}/runs')
          
         for ep in tqdm(range(1, self.epoch+1)):
+            self.device = self.cfg['device']
             t_ls = self._fit_impl(model, optimizer, criterion, train_loader, self.device)
             self.writer.add_scalar('Loss/train', t_ls, ep)
             torch.cuda.empty_cache()
@@ -62,6 +62,7 @@ class Trainer:
                 
             if ep % save_period == 0: # save model at every n epoch
                 if val_loader:
+                    self.device = 'cuda'
                     v_ls = self._val_impl(model, criterion, val_loader, self.device) 
                     self.writer.add_scalar('Loss/val', v_ls, ep)
                     torch.cuda.empty_cache()
@@ -69,6 +70,7 @@ class Trainer:
                 self._save_ckpt(model, ckpt_name=f'epoch{ep}')
             
     def _fit_impl(self, model, optimizer, criterion, dataloader, device):
+        model.to(device)  
         model.train()
         ls = 0.0
         for _, data in enumerate(dataloader):
@@ -83,6 +85,7 @@ class Trainer:
         return ls / len(dataloader.dataset)
     
     def _val_impl(self, model, criterion, dataloader, device):
+        model.to(device)  
         model.eval()
         ls = 0.0
         for _, data in enumerate(dataloader):
