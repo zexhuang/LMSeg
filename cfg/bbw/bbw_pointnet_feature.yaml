@@ -1,0 +1,20 @@
+# dataset
+dataset: bbw
+load_feature: all
+batch: 4
+workers: 9
+num_points: 1024
+
+# train config
+epoch: 100
+patience: 100
+lr: 0.01
+w_decay: 0.0001
+device: cuda
+
+# model
+in_channels: 15
+out_channels: 1
+
+# save
+path: save/bbw/bbw_pointnet_feature
