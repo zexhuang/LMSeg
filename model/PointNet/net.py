@@ -31,18 +31,7 @@ class PointNetSeg(nn.Module):
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
         x = self.conv4(x)
-        x = x.transpose(2,1).contiguous()
+        x = x.transpose(2, 1).contiguous()
         y = x.view(batch_size * num_points, self.out_channels)
-        return {'y':y} 
+        return {'y': (y, trans_feat)} 
 
-
-class get_loss(torch.nn.Module):
-    def __init__(self, mat_diff_loss_scale=0.001):
-        super(get_loss, self).__init__()
-        self.mat_diff_loss_scale = mat_diff_loss_scale
-
-    def forward(self, pred, target, trans_feat, weight):
-        loss = F.nll_loss(pred, target, weight = weight)
-        mat_diff_loss = feature_transform_reguliarzer(trans_feat)
-        total_loss = loss + mat_diff_loss * self.mat_diff_loss_scale
-        return total_loss

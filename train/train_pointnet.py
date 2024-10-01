@@ -10,7 +10,7 @@ from torch_geometric.loader import DataLoader
 from data.dataset import BudjBimWallMeshDataset
 
 from model.PointNet.net import PointNetSeg
-from model.utils.loss import BCELogitsSmoothingLoss
+from model.PointNet.pointnet_utils import BCERegLoss
 
 from train.trainer import Trainer
 
@@ -49,9 +49,9 @@ if __name__ == '__main__':
                                   drop_last=True)   
         val_loader = DataLoader(val_set, 
                                 batch_size=cfg['batch'], 
-                                shuffle=True, 
+                                shuffle=False, 
                                 num_workers=cfg['workers'],
-                                drop_last=True)
+                                drop_last=False)
         test_loader = DataLoader(test_set, 
                                  batch_size=cfg['batch'], 
                                  shuffle=False, 
@@ -60,10 +60,11 @@ if __name__ == '__main__':
         
         model = PointNetSeg(cfg['in_channels'], 
                             cfg['out_channels'])
+        loss = BCERegLoss()
 
         trainer = Trainer(cfg=cfg) 
         trainer.fit(model, 
-                    criterion=BCELogitsSmoothingLoss(),
+                    criterion=loss,
                     train_loader=train_loader, 
                     val_loader=val_loader)
         trainer.eval(model, 
