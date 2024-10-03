@@ -360,3 +360,77 @@ class SUMDataset(Dataset):
             data = self.transform(data)
             
         return data
+    
+    
+class BBWPointDataset(BudjBimWallMeshDataset):
+    def __init__(self, 
+                 root: Union[Path, str],
+                 split: str = 'train', 
+                 load_feature: Optional[str] = 'all',
+                 first_subsampling_dl = 0.02,
+                 config=None,
+                 classification = False,
+                 class_choice=None,
+                 data_augmentation=True,
+                 transform = None, 
+                 pre_transform = None):
+        super().__init__(root, split, load_feature, transform, pre_transform)
+        self.first_subsampling_dl = first_subsampling_dl
+        self.config = config
+        self.data_augmentation = data_augmentation
+        self.classification = classification
+        self.cat2id = {}
+        self.seg_classes = {}
+        
+        # if a subset of classes is specified.
+        if class_choice is not None:
+            self.cat2id = {k: v for k, v in self.cat2id.items() if k in class_choice}
+        self.id2cat = {v: k for k, v in self.cat2id.items()}
+        
+        self.classes = dict(zip(sorted(self.cat2id), range(len(self.cat2id))))
+        
+        self.transform = None
+    
+    def get(self, idx):        
+        data = torch.load(self.data_list[idx])            
+        
+        if self.load_feature == 'all':
+            data.x = torch.cat([data.normals, data.hsv], dim=-1)
+        elif self.load_feature == 'hsv':
+            data.x = data.hsv
+        elif self.load_feature == 'normals':
+            data.x = data.normals
+        elif self.load_feature is None:
+            data.x = None
+        
+        if self.transform:
+            data = self.transform(data)
+            
+        point_set = data.pos.detach().cpu().numpy()
+        normals = data.normals.detach().cpu().numpy()
+        seg = data.y.detach().cpu().numpy()
+        
+        # Center and rescale point for 1m radius
+        pmin = np.min(point_set, axis=0)
+        pmax = np.max(point_set, axis=0)
+        point_set -= (pmin + pmax) / 2
+        scale = np.max(np.linalg.norm(point_set, axis=1))
+        point_set *= 1.0 / scale
+
+        if self.data_augmentation and self.split == 'train':
+            theta = np.random.uniform(0, np.pi * 2)
+            rotation_matrix = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+            # TODO: why only rotate the x and z axis??
+            point_set[:, [0, 2]] = point_set[:, [0, 2]].dot(rotation_matrix)  # random rotation
+            point_set += np.random.normal(0, 0.001, size=point_set.shape)  # random jitter
+            
+        if self.config.in_features_dim == 1:
+            features = np.ones([point_set.shape[0], 1])
+        elif self.config.in_features_dim == 4:
+            features = np.ones([point_set.shape[0], 1])
+            features = np.concatenate([features, point_set], axis=1)
+        elif self.config.in_features_dim == 7:
+            features = np.ones([point_set.shape[0], 1])
+            features = np.concatenate([features, point_set, normals], axis=1)
+            
+        return point_set, features, seg
