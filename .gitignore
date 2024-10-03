@@ -6,6 +6,7 @@ __pycache__
 save/*
 data/*
 KPConv/*
+kernerls/*
 
 !data/budjbim.py
 !data/csf.py
