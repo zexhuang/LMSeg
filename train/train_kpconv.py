@@ -5,6 +5,7 @@ sys.path.append('/data/proj/LMSeg/KPConv')
 
 import yaml
 import argparse
+from torchmetrics.classification import BinaryF1Score, BinaryJaccardIndex
 
 from KPConv.utils.config import Config
 from KPConv.models.KPFCNN import KPFCNN
@@ -108,5 +109,7 @@ if __name__ == '__main__':
                     val_loader=val_loader)
         trainer.eval(model, 
                      test_loader, 
+                     metric={'f1': BinaryF1Score(), 
+                             'mIoU': BinaryJaccardIndex()},
                      ckpt=f"epoch{cfg['epoch']}",
                      verbose=True)
