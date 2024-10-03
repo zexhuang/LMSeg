@@ -70,7 +70,7 @@ if __name__ == '__main__':
         kp_config = KPFCNNConfig()
         kp_config.dataset = cfg['dataset']
         kp_config.num_classes = cfg['out_channels']
-        kp_config.in_features_dim = cfg['in_features_dim']
+        kp_config.in_features_dim = cfg['in_channels']
         kp_config.train_batch_size = cfg['batch']
         kp_config.test_batch_size = cfg['batch']
     
