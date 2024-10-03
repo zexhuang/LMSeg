@@ -18,16 +18,17 @@ from data.dataset import BBWPointDataset
 
 class KPFCNNConfig(Config):    
     # model
-    architecture = ['simple',
+    architecture = [
+                    "simple",
+                    "resnetb",
+                    "resnetb_strided",
+                    "resnetb",
+                    "resnetb_strided",
                     'resnetb',
                     'resnetb_strided',
                     'resnetb',
                     'resnetb_strided',
-                    'resnetb_deformable',
-                    'resnetb_deformable_strided',
-                    'resnetb_deformable',
-                    'resnetb_deformable_strided',
-                    'resnetb_deformable',
+                    'resnetb',
                     'nearest_upsample',
                     'unary',
                     'nearest_upsample',
@@ -35,7 +36,8 @@ class KPFCNNConfig(Config):
                     'nearest_upsample',
                     'unary',
                     'nearest_upsample',
-                    'unary']
+                    'unary'
+                ]
     dropout = 0.5
     resume = None
     use_batch_norm = True
@@ -44,7 +46,7 @@ class KPFCNNConfig(Config):
 
     # kernel point convolution
     KP_influence = 'linear'
-    KP_extent = 1.0
+    KP_extent = 1.2
     convolution_mode = 'sum'
     
     def load(self, path):
@@ -71,6 +73,7 @@ if __name__ == '__main__':
         kp_config.dataset = cfg['dataset']
         kp_config.num_classes = cfg['out_channels']
         kp_config.in_features_dim = cfg['in_channels']
+        kp_config.num_points = cfg['num_points']
         kp_config.train_batch_size = cfg['batch']
         kp_config.test_batch_size = cfg['batch']
     
