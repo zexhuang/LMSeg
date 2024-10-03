@@ -8,6 +8,7 @@ import argparse
 import torch_geometric.transforms as T
 from torch_geometric.loader import DataLoader
 from data.dataset import BudjBimWallMeshDataset
+from torchmetrics.classification import BinaryF1Score, BinaryJaccardIndex
 
 from model.PointNet.net import PointNetSeg
 from model.PointNet.pointnet_utils import BCERegLoss
@@ -74,5 +75,7 @@ if __name__ == '__main__':
         model.get_trans_feat = False
         trainer.eval(model, 
                      test_loader, 
+                     metric={'f1': BinaryF1Score(), 
+                             'mIoU': BinaryJaccardIndex()},
                      ckpt=f"epoch{cfg['epoch']}",
                      verbose=True)
