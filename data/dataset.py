@@ -393,7 +393,7 @@ class BBWPointDataset(BudjBimWallMeshDataset):
     
     def get(self, idx):        
         data = torch.load(self.data_list[idx])            
-        
+            
         if self.load_feature == 'all':
             data.x = torch.cat([data.normals, data.hsv], dim=-1)
         elif self.load_feature == 'hsv':
@@ -402,12 +402,10 @@ class BBWPointDataset(BudjBimWallMeshDataset):
             data.x = data.normals
         elif self.load_feature is None:
             data.x = None
-        
-        if self.transform:
-            data = self.transform(data)
             
         point_set = data.pos.detach().cpu().numpy()
-        normals = data.normals.detach().cpu().numpy()
+        # normals = data.normals.detach().cpu().numpy()
+        point_features = data.x.detach().cpu().numpy()
         seg = data.y.detach().cpu().numpy()
         
         # Center and rescale point for 1m radius
@@ -424,13 +422,6 @@ class BBWPointDataset(BudjBimWallMeshDataset):
             point_set[:, [0, 2]] = point_set[:, [0, 2]].dot(rotation_matrix)  # random rotation
             point_set += np.random.normal(0, 0.001, size=point_set.shape)  # random jitter
             
-        if self.config.in_features_dim == 1:
-            features = np.ones([point_set.shape[0], 1])
-        elif self.config.in_features_dim == 4:
-            features = np.ones([point_set.shape[0], 1])
-            features = np.concatenate([features, point_set], axis=1)
-        elif self.config.in_features_dim == 7:
-            features = np.ones([point_set.shape[0], 1])
-            features = np.concatenate([features, point_set, normals], axis=1)
-            
+        features = np.ones([point_set.shape[0], 1])    
+        features = np.concatenate([features, point_set, point_features], axis=1)            
         return point_set, features, seg
