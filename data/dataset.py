@@ -156,10 +156,7 @@ class BudjBimWallMeshDataset(Dataset):
             data.x = data.normals
         elif self.load_feature is None:
             data.x = None
-        
-        if self.transform:
-            data = self.transform(data)
-            
+
         return data
 
 
@@ -355,9 +352,6 @@ class SUMDataset(Dataset):
             data.x = data.normals
         elif self.load_feature is None:
             data.x = None
-        
-        if self.transform:
-            data = self.transform(data)
             
         return data
     
