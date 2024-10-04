@@ -5,6 +5,7 @@ sys.path.append('/data/proj/LMSeg/KPConv')
 
 import yaml
 import argparse
+import torch_geometric.transforms as T
 from torchmetrics.classification import BinaryF1Score, BinaryJaccardIndex
 
 from KPConv.utils.config import Config
@@ -81,14 +82,19 @@ if __name__ == '__main__':
                                     split='train', 
                                     config=kp_config,
                                     load_feature=cfg['load_feature'])
+        train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+        
         val_set = BBWPointDataset(root=args.root, 
                                   split='val', 
                                   config=kp_config,
                                   load_feature=cfg['load_feature'])
+        val_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+        
         test_set = BBWPointDataset(root=args.root, 
                                    split='test', 
                                    config=kp_config,
                                    load_feature=cfg['load_feature'])
+        test_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
     
         train_loader = get_dataloader(train_set, 
                                       batch_size=cfg['batch'], 
