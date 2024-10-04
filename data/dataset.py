@@ -368,9 +368,9 @@ class BBWPointDataset(BudjBimWallMeshDataset):
                  split: str = 'train', 
                  load_feature: Optional[str] = 'all',
                  first_subsampling_dl = 0.02,
-                 config=None,
+                 config = None,
                  classification = False,
-                 class_choice=None,
+                 class_choice = None,
                  transform = None, 
                  pre_transform = None):
         super().__init__(root, split, load_feature, transform, pre_transform)
@@ -387,16 +387,15 @@ class BBWPointDataset(BudjBimWallMeshDataset):
         
         self.classes = dict(zip(sorted(self.cat2id), range(len(self.cat2id))))
         
-        self.transform = None
+    def __getitem__(self, idx):
+        data = self.get(self.indices()[idx])
+        return data
     
     def get(self, idx):        
         data = torch.load(self.data_list[idx])   
         
-        data = T.NormalizeScale()(data)    
-        data = T.RandomRotate(1, axis=0)(data)
-        data = T.RandomRotate(1, axis=1)(data)
-        data = T.RandomRotate(180, axis=2)(data)
-        data = T.FixedPoints(self.config.num_points)(data)
+        if self.transform:
+            data = self.transform(data)
             
         if self.load_feature == 'all':
             point_features = torch.cat([data.normals, data.hsv], dim=-1)
