@@ -8,7 +8,7 @@ import startinpy
 import pymeshlab as pml
 import fast_simplification as sim
 
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict
 from shapely.geometry import Polygon
 from tqdm import tqdm
 from pathlib import Path
@@ -89,7 +89,7 @@ def get_grid_df(url: str,
                     cog_part = cog.part(temp_bounds, dst_crs=crs, bounds_crs=crs)
                     cog_img = np.asarray(cog_part.data_as_image())
                     
-                    pos, neg = np.count_nonzero(cog_img == 1), \
+                    pos, neg = np.count_nonzero(cog_img >= 1), \
                                np.count_nonzero(cog_img == 0)
                     assert (neg + pos) == cog_img.size
                     
@@ -122,16 +122,19 @@ def save_mesh(fname: Union[str, Path],
               v_normal: Optional[np.ndarray] = None, 
               f_normal: Optional[np.ndarray] = None,
               v_rgb:  Optional[np.ndarray] = None, 
-              v_mask: Optional[np.ndarray] = None,
+              v_mask: Optional[Dict[str, np.ndarray]] = None,
               f_rgb:  Optional[np.ndarray] = None, 
-              f_mask: Optional[np.ndarray] = None):
+              f_mask: Optional[Dict[str, np.ndarray]] = None):
+    
+    f_mask = {'mask': f_mask} if f_mask is not None else f_mask
+    v_mask = {'mask': v_mask} if v_mask is not None else v_mask
+    
     import trimesh
-
     mesh = trimesh.Trimesh(vertices=vertex, faces=face, 
                            face_normals=f_normal, vertex_normals=v_normal,
                            face_colors=f_rgb, vertex_colors=v_rgb,
-                           face_attributes={'mask': f_mask}, 
-                           vertex_attributes={'mask': v_mask},
+                           face_attributes=f_mask, 
+                           vertex_attributes=v_mask,
                            process=True, 
                            validate=True,
                            merge_tex=True)
@@ -219,19 +222,19 @@ def clean_mesh(vertex:np.ndarray, face: np.ndarray):
     return v, f, vn, fn
 
 
-def copc_to_poly(copc_url: str, 
-                 mask_url: str,
-                 rgb_url: str,
-                 area_file: str,
-                 grid_size: int,
-                 grid_stride: List[int],
-                 classification: Optional[List[int]] = None,
-                 ground_filt: bool = True,
-                 csf_res: float = 0.03,
-                 rigidness: int = 1,
-                 slope_smooth: bool = True,
-                 agg: float = 0.0,
-                 output: Union[str, None] = None):
+def copc_to_poly_by_area(copc_url: str, 
+                         mask_url: str,
+                         rgb_url: str,
+                         area_file: str,
+                         grid_size: int,
+                         grid_stride: List[int],
+                         classification: Optional[List[int]] = None,
+                         ground_filt: bool = True,
+                         csf_res: float = 0.03,
+                         rigidness: int = 1,
+                         slope_smooth: bool = True,
+                         agg: float = 0.0,
+                         output: Union[str, None] = None):
     
     data_dir = Path(__file__).parent / output if output else Path(__file__).parent / 'BudjBimWall' 
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -240,7 +243,7 @@ def copc_to_poly(copc_url: str,
         areas = gpd.read_file(data_dir / area_file)
     else:
         areas = split_areas(mask_url)
-        areas.to_file(data_dir / area_file, driver="GPKG") 
+        areas.to_file(data_dir / 'areas.gpkg', driver="GPKG") 
         
     for area_id, area in areas.iterrows():        
         mesh_fp = data_dir / 'mesh' / f'area{area_id + 1}'
@@ -292,13 +295,74 @@ def copc_to_poly(copc_url: str,
             f_mask = from_cog(mask_url, bounds, fv[:, :2])
             f_mask = f_mask.astype(np.float64).reshape(-1)
             
-            save_mesh(mesh_fp / fname, v, f, v_normal=vn,  f_normal=fn, v_rgb=v_rgb, v_mask=v_mask, f_rgb=f_rgb, f_mask=f_mask)
+            save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, v_mask=v_mask, f_rgb=f_rgb, f_mask=f_mask)
+            
+            
+def copc_to_poly(copc_url: str, 
+                 rgb_url: str,
+                 grid_size: int,
+                 grid_stride: List[int],
+                 grid_file: str,
+                 classification: Optional[List[int]] = None,
+                 ground_filt: bool = True,
+                 csf_res: float = 0.03,
+                 rigidness: int = 1,
+                 slope_smooth: bool = True,
+                 agg: float = 0.0,
+                 output: Union[str, None] = None):
+    
+    data_dir = Path(__file__).parent / output if output else Path(__file__).parent / 'BudjBimLandscape' 
+    data_dir.mkdir(parents=True, exist_ok=True)
+           
+    mesh_fp = data_dir / 'mesh'
+    mesh_fp.mkdir(parents=True, exist_ok=True)
+    
+    if os.path.exists(data_dir / grid_file):
+        grid_df = gpd.read_file(data_dir / grid_file)
+    else:
+        grid_df = get_grid_df(rgb_url, grid_size, grid_stride)
+        grid_df.to_file(data_dir / 'grids.gpkg', driver="GPKG")
+    
+    grids = [row['geometry'] for _, row in grid_df.iterrows()]
+    
+    for _, grid in enumerate(tqdm(grids)):          
+        fname = f"e{str(int(grid.centroid.x))}_n{str(int(grid.centroid.y))}_{grid_df.crs}.ply".replace(":", "")
+        
+        points, rgb, intensity, ground_id, _ = from_copc(copc_url, grid.bounds, classification, ground_filt, csf_res, rigidness, slope_smooth)
+                
+        bounds = (points[:,0].min(), points[:,1].min(), 
+                  points[:,0].max(), points[:,1].max())                        
+        
+        dt = startinpy.DT()
+        dt.insert(points[ground_id])
+        v, f = dt.points, dt.triangles
+        v, f = sim.simplify(v.astype(np.float32), f.astype(np.float32), target_reduction=0.99, agg=agg)
+        v, f, vn, fn = clean_mesh(v, f)
+        
+        bounds = (v[:,0].min(), v[:,1].min(), 
+                  v[:,0].max(), v[:,1].max())
+        
+        v_rgb = from_cog(rgb_url, bounds, v[:, :2])
+        v_rgb = v_rgb.astype(np.uint8)
+        
+        import trimesh
+        fv = trimesh.Trimesh(v, f).triangles_center
+        
+        bounds = (fv[:,0].min(), fv[:,1].min(), 
+                    fv[:,0].max(), fv[:,1].max())
+        
+        f_rgb = from_cog(rgb_url, bounds, fv[:, :2])
+        f_rgb = f_rgb.astype(np.uint8)
+        
+        save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, f_rgb=f_rgb)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BudjBim Mesh Dataset based on Hand Annotation Mask')
+    parser.add_argument('--dataset', type=str, default="BudjBimWall", metavar='N', 
+                        help='choice of BudjBim dataset')
     parser.add_argument('--copc_url', type=str,  metavar='N',
-                        default='https://objects.storage.unimelb.edu.au/4320_budjbimdata/COPC/AHD_10cm.copc.laz',
+                        default='https://objects.storage.unimelb.edu.au/4320_budjbimdata/COPC/budj_bim.copc.laz',
                         help='copc url')
     parser.add_argument('--mask_url', type=str,  metavar='N',
                         default='https://objects.storage.unimelb.edu.au/4320_budjbimdata/COGs/binary_mask_anno.tif',
@@ -306,12 +370,14 @@ if __name__ == '__main__':
     parser.add_argument('--rgb_url', type=str,  metavar='N',
                         default='https://objects.storage.unimelb.edu.au/4320_budjbimdata/COGs/RGB_10cm.tif',
                         help='rgb image url')
-    parser.add_argument('--area_file', type=str, default='areas.gpkg', metavar='N', 
+    parser.add_argument('--area_file', type=str, default=None, metavar='N', 
                         help='area splits of BudjBim stone wall')
     parser.add_argument('--size', type=int, default=20, metavar='N', 
                         help='size of grid from top-left corner (default: 20 (meter))')
     parser.add_argument('--stride', type=list[int], default=[20], metavar='N', 
                         help='list of distances defined for grids to move from top to bottm, left to right (default: [20])')
+    parser.add_argument('--grid_file', type=str, default=None, metavar='N', 
+                        help='rectangular grid of BudjBim landscape')
     parser.add_argument('--classification', type=list, default=[2, 3, 4], metavar='N', # ground, low and medium veg class
                         help='point cloud query by ALS classification')
     parser.add_argument('--ground_filt', type=bool,  default=True,
@@ -328,16 +394,30 @@ if __name__ == '__main__':
                         help='output folder')
     args = parser.parse_args()
     
-    copc_to_poly(copc_url = args.copc_url, 
-                 mask_url = args.mask_url, 
-                 rgb_url = args.rgb_url,
-                 area_file= args.area_file,
-                 grid_size = args.size,
-                 grid_stride = args.stride,
-                 classification = args.classification, 
-                 ground_filt = args.ground_filt,
-                 csf_res = args.csf_res,
-                 rigidness = args.rigidness,
-                 slope_smooth = args.slope_smooth,
-                 agg=args.agg,
-                 output = args.output)
+    if args.dataset == "BudjBimWall":
+        copc_to_poly_by_area(copc_url = args.copc_url, 
+                             mask_url = args.mask_url, 
+                             rgb_url = args.rgb_url,
+                             area_file= args.area_file,
+                             grid_size = args.size,
+                             grid_stride = args.stride,
+                             classification = args.classification, 
+                             ground_filt = args.ground_filt,
+                             csf_res = args.csf_res,
+                             rigidness = args.rigidness,
+                             slope_smooth = args.slope_smooth,
+                             agg=args.agg,
+                             output = args.output)
+    elif args.dataset == "BudjBimLandscape":
+        copc_to_poly(copc_url = args.copc_url, 
+                     rgb_url = args.rgb_url,
+                     grid_size = args.size,
+                     grid_stride = args.stride,
+                     grid_file= args.grid_file,
+                     classification = args.classification, 
+                     ground_filt = args.ground_filt,
+                     csf_res = args.csf_res,
+                     rigidness = args.rigidness,
+                     slope_smooth = args.slope_smooth,
+                     agg=args.agg,
+                     output = args.output)
