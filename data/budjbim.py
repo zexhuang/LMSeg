@@ -329,13 +329,13 @@ def copc_to_poly(copc_url: str,
         fname = f"e{str(int(grid.centroid.x))}_n{str(int(grid.centroid.y))}_{grid_df.crs}.ply".replace(":", "")
         
         points, rgb, intensity, ground_id, _ = from_copc(copc_url, grid.bounds, classification, ground_filt, csf_res, rigidness, slope_smooth)
-                
-        bounds = (points[:,0].min(), points[:,1].min(), 
-                  points[:,0].max(), points[:,1].max())                        
+        if points.size == 0: continue       # Ad-hoc fix to skip current iteration for empty point clouds returned                
         
         dt = startinpy.DT()
         dt.insert(points[ground_id])
+        
         v, f = dt.points, dt.triangles
+        if v.shape[0] == 0 or f.shape[0] == 0: continue     # Ad-hoc fix to skip current iteration for empty mesh faces and vertices      
         v, f = sim.simplify(v.astype(np.float32), f.astype(np.float32), target_reduction=0.99, agg=agg)
         v, f, vn, fn = clean_mesh(v, f)
         
@@ -349,7 +349,7 @@ def copc_to_poly(copc_url: str,
         fv = trimesh.Trimesh(v, f).triangles_center
         
         bounds = (fv[:,0].min(), fv[:,1].min(), 
-                    fv[:,0].max(), fv[:,1].max())
+                  fv[:,0].max(), fv[:,1].max())
         
         f_rgb = from_cog(rgb_url, bounds, fv[:, :2])
         f_rgb = f_rgb.astype(np.uint8)
