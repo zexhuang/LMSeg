@@ -333,11 +333,14 @@ def copc_to_poly(copc_url: str,
         
         dt = startinpy.DT()
         dt.insert(points[ground_id])
-        
         v, f = dt.points, dt.triangles
+        if v.shape[0] == 0 or f.shape[0] == 0: continue     # Ad-hoc fix to skip current iteration for empty mesh faces and vertices  
+        
+        v, f = sim.simplify(v.astype(np.float32), f.astype(np.float32), target_reduction=0.99, agg=agg)        
         if v.shape[0] == 0 or f.shape[0] == 0: continue     # Ad-hoc fix to skip current iteration for empty mesh faces and vertices      
-        v, f = sim.simplify(v.astype(np.float32), f.astype(np.float32), target_reduction=0.99, agg=agg)
+        
         v, f, vn, fn = clean_mesh(v, f)
+        if v.shape[0] == 0 or f.shape[0] == 0: continue     # Ad-hoc fix to skip current iteration for empty mesh faces and vertices   
         
         bounds = (v[:,0].min(), v[:,1].min(), 
                   v[:,0].max(), v[:,1].max())
