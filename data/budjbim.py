@@ -276,24 +276,38 @@ def copc_to_poly_by_area(copc_url: str,
             
             bounds = (v[:,0].min(), v[:,1].min(), 
                       v[:,0].max(), v[:,1].max())
+            try:
+                v_rgb = from_cog(rgb_url, bounds, v[:, :2])
+                v_rgb = v_rgb.astype(np.uint8)
+            except Exception as e:
+                print(f"Unexpected error {e}")
+                continue
             
-            v_rgb = from_cog(rgb_url, bounds, v[:, :2])
-            v_rgb = v_rgb.astype(np.uint8)
-            
-            v_mask = from_cog(mask_url, bounds, v[:, :2])
-            v_mask = v_mask.astype(np.float64).reshape(-1)
+            try:
+                v_mask = from_cog(mask_url, bounds, v[:, :2])
+                v_mask = v_mask.astype(np.float64).reshape(-1)
+            except Exception as e:
+                print(f"Unexpected error {e}")
+                continue
             
             import trimesh
             fv = trimesh.Trimesh(v, f).triangles_center
             
             bounds = (fv[:,0].min(), fv[:,1].min(), 
                       fv[:,0].max(), fv[:,1].max())
+            try:
+                f_rgb = from_cog(rgb_url, bounds, fv[:, :2])
+                f_rgb = f_rgb.astype(np.uint8)
+            except Exception as e:
+                print(f"Unexpected error {e}")
+                continue
             
-            f_rgb = from_cog(rgb_url, bounds, fv[:, :2])
-            f_rgb = f_rgb.astype(np.uint8)
-
-            f_mask = from_cog(mask_url, bounds, fv[:, :2])
-            f_mask = f_mask.astype(np.float64).reshape(-1)
+            try:
+                f_mask = from_cog(mask_url, bounds, fv[:, :2])
+                f_mask = f_mask.astype(np.float64).reshape(-1)
+            except Exception as e:
+                print(f"Unexpected error {e}")
+                continue
             
             save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, v_mask=v_mask, f_rgb=f_rgb, f_mask=f_mask)
             
@@ -344,18 +358,24 @@ def copc_to_poly(copc_url: str,
         
         bounds = (v[:,0].min(), v[:,1].min(), 
                   v[:,0].max(), v[:,1].max())
-        
-        v_rgb = from_cog(rgb_url, bounds, v[:, :2])
-        v_rgb = v_rgb.astype(np.uint8)
+        try:
+            v_rgb = from_cog(rgb_url, bounds, v[:, :2])
+            v_rgb = v_rgb.astype(np.uint8)
+        except Exception as e:
+            print(f"Unexpected error {e}")
+            continue
         
         import trimesh
         fv = trimesh.Trimesh(v, f).triangles_center
         
         bounds = (fv[:,0].min(), fv[:,1].min(), 
                   fv[:,0].max(), fv[:,1].max())
-        
-        f_rgb = from_cog(rgb_url, bounds, fv[:, :2])
-        f_rgb = f_rgb.astype(np.uint8)
+        try:
+            f_rgb = from_cog(rgb_url, bounds, fv[:, :2])
+            f_rgb = f_rgb.astype(np.uint8)
+        except Exception as e:
+            print(f"Unexpected error {e}")
+            continue
         
         save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, f_rgb=f_rgb)
 
