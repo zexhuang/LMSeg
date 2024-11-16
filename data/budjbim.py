@@ -343,7 +343,7 @@ def copc_to_poly(copc_url: str,
         fname = f"e{str(int(grid.centroid.x))}_n{str(int(grid.centroid.y))}_{grid_df.crs}.ply".replace(":", "")
         
         points, rgb, intensity, ground_id, _ = from_copc(copc_url, grid.bounds, classification, ground_filt, csf_res, rigidness, slope_smooth)
-        if points.size == 0: continue       # Ad-hoc fix to skip current iteration for empty point clouds returned                
+        if points.size == 0: continue                       # Ad-hoc fix to skip current iteration for empty point clouds returned                
         
         dt = startinpy.DT()
         dt.insert(points[ground_id])
