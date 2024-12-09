@@ -66,17 +66,13 @@ def get_grid_df(url: str,
     with Reader(url) as cog:
         crs = cog.dataset.crs
         bounds = cog.bounds if area is None else area.bounds
-        
         # Tile bounds
-        x_min, y_min, \
-        x_max, y_max = bounds[0], bounds[1], \
-                       bounds[2], bounds[3]
+        x_min, y_min, x_max, y_max = bounds
         # Tile size
-        w = x_max - x_min
-        h = y_max - y_min
+        w, h = x_max - x_min, y_max - y_min
         # Top-left corner
         window_bounds = (x_min, y_max - size, x_min + size, y_max)
-    
+        
         for s in stride:
             # Move from top to down, left to right
             for _, i in enumerate(tqdm(list(range(0, int(w // s))))):
