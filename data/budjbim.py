@@ -343,18 +343,22 @@ def copc_to_poly(copc_url: str,
         fname = f"e{str(int(grid.centroid.x))}_n{str(int(grid.centroid.y))}_{grid_df.crs}.ply".replace(":", "")
         
         points, rgb, intensity, ground_id, _ = from_copc(copc_url, grid.bounds, classification, ground_filt, csf_res, rigidness, slope_smooth)
-        if points.size == 0: continue                       # Ad-hoc fix to skip current iteration for empty point clouds returned                
+        if points.size == 0: 
+            continue      # Ad-hoc fix to skip current iteration for empty point clouds returned                
         
         dt = startinpy.DT()
         dt.insert(points[ground_id])
         v, f = dt.points, dt.triangles
-        if v.shape[0] == 0 or f.shape[0] == 0: continue     # Ad-hoc fix to skip current iteration for empty mesh faces and vertices  
+        if v.shape[0] == 0 or f.shape[0] == 0: 
+            continue     # Ad-hoc fix to skip current iteration for empty mesh faces and vertices  
         
         v, f = sim.simplify(v.astype(np.float32), f.astype(np.float32), target_reduction=0.99, agg=agg)        
-        if v.shape[0] == 0 or f.shape[0] == 0: continue     # Ad-hoc fix to skip current iteration for empty mesh faces and vertices      
+        if v.shape[0] == 0 or f.shape[0] == 0: 
+            continue     # Ad-hoc fix to skip current iteration for empty simplified mesh faces and vertices      
         
         v, f, vn, fn = clean_mesh(v, f)
-        if v.shape[0] == 0 or f.shape[0] == 0: continue     # Ad-hoc fix to skip current iteration for empty mesh faces and vertices   
+        if v.shape[0] == 0 or f.shape[0] == 0: 
+            continue     # Ad-hoc fix to skip current iteration for empty cleaned mesh faces and vertices   
         
         bounds = (v[:,0].min(), v[:,1].min(), 
                   v[:,0].max(), v[:,1].max())
