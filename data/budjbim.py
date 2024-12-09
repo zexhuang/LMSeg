@@ -24,20 +24,13 @@ def split_areas(url: str,
     
     with Reader(url) as cog:
         crs = cog.dataset.crs
-        bounds = cog.bounds
-        
         # Tile bounds
-        x_min, y_min, \
-        x_max, y_max = bounds[0], bounds[1], \
-                       bounds[2], bounds[3]               
-                       
+        x_min, y_min, x_max, y_max = cog.bounds         
         # Tile size
-        w = x_max - x_min
-        h = y_max - y_min
-                       
+        w, h = x_max - x_min, y_max - y_min
+        # Area size
         area_w = w // w_factor
         area_h = h // h_factor
-        
         # Top-left corner
         window_bounds = (x_min, y_max - area_h, x_min + area_w, y_max)        
         
