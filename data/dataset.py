@@ -1,6 +1,7 @@
 import os
 from typing import Optional, Union
 from pathlib import Path
+from tqdm import tqdm
 
 import numpy as np
 import trimesh
@@ -38,6 +39,82 @@ def rgb_to_hsv(rgb: np.ndarray):
     hsv[..., 2] = maxv
 
     return hsv
+    
+    
+class BudjBimLandscapeMeshDataset(Dataset):
+    def __init__(self, 
+                 root: Union[Path, str],
+                 transform = None, 
+                 pre_transform = None):
+        self.root = Path(root)
+        super().__init__(self.root, transform, pre_transform)
+        self.mesh_list = sorted(list((self.root / 'mesh').glob('*.ply')))
+        self.data_list = sorted(list((Path(self.processed_paths[0])).glob('*.pt')))
+        
+        if transform:
+            self.transform=transform
+        else:
+            self.transform = T.Compose([T.NormalizeScale()])
+
+    @property
+    def processed_file_names(self):
+        return ['processed_mesh']
+            
+    def process(self): 
+        Path(self.processed_paths[0]).mkdir(parents=True, exist_ok=True)
+        
+        raw_ply_files = list(self.root / 'mesh' / f for f in os.listdir(self.root / 'mesh'))
+            
+        for f in tqdm(raw_ply_files, desc="Processing meshes"):
+            plydata = trimesh.load(f, force="mesh")
+            plydata.fix_normals()
+            plydata.invert()
+            
+            face = torch.from_numpy(np.asarray(plydata.faces, dtype=np.int64)).t()
+            face_rgba = torch.from_numpy(np.asarray(plydata.visual.face_colors, dtype=np.float32))
+            pos = torch.from_numpy(np.asarray(plydata.triangles_center, dtype=np.float32)) 
+            
+            edge_index = torch.from_numpy(np.asarray(plydata.face_adjacency.copy(), dtype=np.int64)).t()
+            if not is_undirected(edge_index, num_nodes=pos.shape[0]):
+                edge_index = to_undirected(edge_index, num_nodes=pos.shape[0])
+            edge_index = coalesce(edge_index, num_nodes=pos.shape[0])
+            edge_index, _ = remove_self_loops(edge_index)
+            
+            data = Data(face=face, rgba=face_rgba / 255.0, pos=pos, edge_index=edge_index) 
+            # mesh normals 
+            data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32))  
+            # mesh (HSV) color  
+            vertex_id = data.face.t().numpy().reshape(-1) 
+            v_rgba = np.asarray(plydata.visual.vertex_colors, dtype=np.float32)[vertex_id].reshape(-1, 3, 4)
+            f_rgba = np.asarray(plydata.visual.face_colors, dtype=np.float32)
+            
+            hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
+                                         rgb_to_hsv(v_rgba[:, 1, 0:3]), \
+                                         rgb_to_hsv(v_rgba[:, 2, 0:3]), \
+                                         rgb_to_hsv(f_rgba[:, 0:3])
+                                        
+            hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
+            hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
+                                                   hsv_j / hsv_max, 
+                                                   hsv_k / hsv_max, 
+                                                   hsv_f / hsv_max], axis=1))    
+            data.hsv = hsv
+                
+            if self.pre_filter is not None and not self.pre_filter(data):
+                continue
+
+            if self.pre_transform is not None:
+                data = self.pre_transform(data)
+                
+            torch.save(data, os.path.join(self.processed_paths[0], f'{f.stem}.pt'))
+        
+    def len(self):
+        return len(self.data_list) 
+    
+    def get(self, idx):        
+        data = torch.load(self.data_list[idx])    
+        data.x = torch.cat([data.normals, data.hsv], dim=-1)        
+        return data
     
     
 class BudjBimWallMeshDataset(Dataset):
