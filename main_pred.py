@@ -57,4 +57,4 @@ if __name__ == '__main__':
             with torch.no_grad():
                 out = model(data)
                 pred = torch.sigmoid(out['y']).detach().cpu()
-                torch.save(pred, out_dir / f"{ dataset.data_list[idx].name}")
+                torch.save(pred, out_dir / f"{data.name[0]}")

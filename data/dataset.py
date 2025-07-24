@@ -113,6 +113,7 @@ class BudjBimLandscapeMeshDataset(Dataset):
     
     def get(self, idx):        
         data = torch.load(self.data_list[idx])    
+        data.name = f'{self.data_list[idx].stem}.pt'
         data.x = torch.cat([data.normals, data.hsv], dim=-1)        
         return data
     
