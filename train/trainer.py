@@ -143,7 +143,7 @@ class Trainer:
     
     def _load_ckpt(self, ckpt_name, device):
         path = Path(self.path) / 'ckpt'
-        return torch.load(path.joinpath(ckpt_name), map_location=device) # {'params': Tensor}
+        return torch.load(path.joinpath(ckpt_name), map_location=device, weights_only=True) # {'params': Tensor}
     
     
 class KPConvTrainer:
@@ -284,4 +284,4 @@ class KPConvTrainer:
     
     def _load_ckpt(self, ckpt_name, device):
         path = Path(self.path) / 'ckpt'
-        return torch.load(path.joinpath(ckpt_name), map_location=device) # {'params': Tensor}
+        return torch.load(path.joinpath(ckpt_name), map_location=device, weights_only=True) # {'params': Tensor}
