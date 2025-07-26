@@ -91,7 +91,7 @@ if __name__ == '__main__':
                                 ignore_index=0,
                                 average=None),
         }
-        trainer.device = 'cpu'
+        # trainer.device = 'cpu'
         trainer.eval(model, 
                      test_loader, 
                      metric=metric_dict, 
