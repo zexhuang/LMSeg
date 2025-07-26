@@ -112,7 +112,7 @@ class BudjBimLandscapeMeshDataset(Dataset):
         return len(self.data_list) 
     
     def get(self, idx):        
-        data = torch.load(self.data_list[idx])    
+        data = torch.load(self.data_list[idx], weights_only=False)    
         data.name = f'{self.data_list[idx].stem}.pt'
         data.x = torch.cat([data.normals, data.hsv], dim=-1)        
         return data
@@ -224,7 +224,7 @@ class BudjBimWallMeshDataset(Dataset):
         return len(self.data_list) 
     
     def get(self, idx):        
-        data = torch.load(self.data_list[idx])            
+        data = torch.load(self.data_list[idx], weights_only=False)              
         
         if self.load_feature == 'all':
             data.x = torch.cat([data.normals, data.hsv], dim=-1)
@@ -420,7 +420,7 @@ class SUMDataset(Dataset):
         return len(self.data_list) 
     
     def get(self, idx):        
-        data = torch.load(self.data_list[idx])            
+        data = torch.load(self.data_list[idx], weights_only=False)             
         
         if self.load_feature == 'all':
             data.x = torch.cat([data.normals, data.hsv], dim=-1)
@@ -464,7 +464,7 @@ class BBWPointDataset(BudjBimWallMeshDataset):
         return data
     
     def get(self, idx):        
-        data = torch.load(self.data_list[idx])   
+        data = torch.load(self.data_list[idx], weights_only=False)   
         
         if self.transform:
             data = self.transform(data)
