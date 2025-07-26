@@ -2,6 +2,7 @@ name: gdl
 channels:
   - nvidia
   - pytorch
+  - pyg
   - conda-forge
   - defaults
 dependencies:
@@ -10,6 +11,11 @@ dependencies:
   - torchvision
   - torchaudio
   - pytorch-cuda=12.1
+  - pyg
+  - pytorch-scatter
+  - pytorch-cluster
+  - pytorch-sparse
+  - pytorch-spline-conv
   - torchinfo
   - torchmetrics
   - ipykernel
@@ -34,11 +40,6 @@ dependencies:
   - tensorboard
   - pip
   - pip:
-      - torch-geometric
-      - torch-scatter
-      - torch-sparse
-      - torch-cluster
-      - torch-spline-conv
       - startinpy
       - fast-simplification
       - "git+https://github.com/facebookresearch/pytorch3d.git"
