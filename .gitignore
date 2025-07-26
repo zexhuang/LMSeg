@@ -3,6 +3,7 @@
 __pycache__
 */__pycache__
 
+output
 save/*
 data/*
 kernels/*
