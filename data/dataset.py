@@ -243,7 +243,7 @@ class SUMDataset(Dataset):
                  root: Union[Path, str], 
                  split: str = 'train', 
                  load_feature: Optional[str] = 'all',
-                 num_faces: Optional[int] = 430000,
+                 num_faces: Optional[int] = 500000,
                  qualitythr: float = 0.3,
                  transform = None, 
                  pre_transform = None):
