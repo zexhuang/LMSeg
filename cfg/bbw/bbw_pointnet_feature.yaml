@@ -2,7 +2,7 @@
 dataset: bbw
 load_feature: all
 batch: 4
-workers: 9
+workers: 8
 num_points: 18000
 
 # train config

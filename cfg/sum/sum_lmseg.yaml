@@ -2,7 +2,7 @@
 dataset: sum
 load_feature: null
 batch: 1
-workers: 9
+workers: 8
 
 # train config
 epoch: 200

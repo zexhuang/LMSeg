@@ -2,7 +2,7 @@
 dataset: bbw
 load_feature: hsv
 batch: 4
-workers: 9
+workers: 8
 
 # train config
 epoch: 100
