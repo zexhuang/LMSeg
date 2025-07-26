@@ -62,7 +62,7 @@ class Trainer:
                 
             if ep % save_period == 0: # save model at every n epoch
                 if val_loader:
-                    self.device = 'cpu'
+                    # self.device = 'cpu'
                     v_ls = self._val_impl(model, criterion, val_loader, self.device) 
                     self.writer.add_scalar('Loss/val', v_ls, ep)
                     torch.cuda.empty_cache()
