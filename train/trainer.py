@@ -87,12 +87,15 @@ class Trainer:
     def _val_impl(self, model, criterion, dataloader, device):
         model.to(device)  
         model.eval()
+        
         ls = 0.0
-        for _, data in enumerate(dataloader):
-            data.to(device)
-            out = model(data) 
-            loss = criterion(out['y'], data['y'])   
-            ls += len(data) * loss.detach().clone()
+        
+        with torch.no_grad():
+            for _, data in enumerate(dataloader):
+                data.to(device)
+                out = model(data) 
+                loss = criterion(out['y'], data['y'])   
+                ls += len(data) * loss.detach().clone()
         return ls / len(dataloader.dataset)
 
     def eval(self, 
@@ -115,16 +118,17 @@ class Trainer:
     
     def _eval_impl(self, model, metric, dataloader):
         model.to(self.device)
+        model.eval()
         
         for name, cm in metric.items(): 
             cm.to(self.device)
         
-        model.eval()
-        for data in dataloader:
-            data.to(self.device)
-            out = model(data) 
-            for name, cm in metric.items():
-                cm.update(out['y'], data['y'].long())
+        with torch.no_grad():
+            for data in dataloader:
+                data.to(self.device)
+                out = model(data) 
+                for name, cm in metric.items():
+                    cm.update(out['y'], data['y'].long())
         return metric  
     
     def load_weights(self, model: torch.nn.Module, ckpt: Union[str, Path]):
@@ -220,16 +224,19 @@ class KPConvTrainer:
     def _val_impl(self, model, criterion, dataloader, device):
         model.to(device)  
         model.eval()
+        
         ls = 0.0
-        for _, data in enumerate(dataloader):       
-            for k, v in data.items():  # load inputs to device.
-                if type(v) == list:
-                    data[k] = [item.to(self.device) for item in v]
-                else:
-                    data[k] = v.to(self.device)
-            out = model(data) 
-            loss = criterion(out, data['labels'])   
-            ls += len(data) * loss.detach().clone()
+        
+        with torch.no_grad():
+            for _, data in enumerate(dataloader):       
+                for k, v in data.items():  # load inputs to device.
+                    if type(v) == list:
+                        data[k] = [item.to(self.device) for item in v]
+                    else:
+                        data[k] = v.to(self.device)
+                out = model(data) 
+                loss = criterion(out, data['labels'])   
+                ls += len(data) * loss.detach().clone()
         return ls / len(dataloader.dataset)
 
     def eval(self, 
@@ -252,20 +259,21 @@ class KPConvTrainer:
     
     def _eval_impl(self, model, metric, dataloader):
         model.to(self.device)
+        model.eval()
         
         for name, cm in metric.items(): 
             cm.to(self.device)
         
-        model.eval()
-        for data in dataloader:
-            for k, v in data.items():  # load inputs to device.
-                if type(v) == list:
-                    data[k] = [item.to(self.device) for item in v]
-                else:
-                    data[k] = v.to(self.device)
-            out = model(data) 
-            for name, cm in metric.items():
-                cm.update(out, data['labels'].long())
+        with torch.no_grad():
+            for data in dataloader:
+                for k, v in data.items():  # load inputs to device.
+                    if type(v) == list:
+                        data[k] = [item.to(self.device) for item in v]
+                    else:
+                        data[k] = v.to(self.device)
+                out = model(data) 
+                for name, cm in metric.items():
+                    cm.update(out, data['labels'].long())
         return metric  
     
     def load_weights(self, model: torch.nn.Module, ckpt: Union[str, Path]):
