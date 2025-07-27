@@ -243,8 +243,8 @@ class SUMDataset(Dataset):
                  root: Union[Path, str], 
                  split: str = 'train', 
                  load_feature: Optional[str] = 'all',
-                 num_faces: Optional[int] = 500000,
-                 qualitythr: float = 0.3,
+                #  num_faces: Optional[int] = 500000,
+                #  qualitythr: float = 0.3,
                  transform = None, 
                  pre_transform = None):
         self.root = Path(root)       
@@ -254,8 +254,8 @@ class SUMDataset(Dataset):
                          'validate': "https://3d.bk.tudelft.nl/opendata/sum/1.0/SUM_Helsinki_C6_mesh/validate/",
                          'test': "https://3d.bk.tudelft.nl/opendata/sum/1.0/SUM_Helsinki_C6_mesh/test/"}
         
-        self.num_faces = num_faces
-        self.qualitythr = qualitythr
+        # self.num_faces = num_faces
+        # self.qualitythr = qualitythr
         
         super().__init__(root, transform, pre_transform)
         
@@ -325,10 +325,10 @@ class SUMDataset(Dataset):
                 ms.set_current_mesh(0)
                 ms.set_texture_per_mesh(textname=str(tex))
                 ms.transfer_texture_to_color_per_vertex()
-                if folder in ['train', 'val', 'test'] and self.num_faces:
-                    ms.meshing_decimation_quadric_edge_collapse_with_texture(targetfacenum=self.num_faces,
-                                                                             qualitythr=self.qualitythr,
-                                                                             preservenormal=True)
+                # if folder in ['train', 'val', 'test'] and self.num_faces:
+                #     ms.meshing_decimation_quadric_edge_collapse_with_texture(targetfacenum=self.num_faces,
+                #                                                              qualitythr=self.qualitythr,
+                #                                                              preservenormal=True)
                 ms.current_mesh().compact()
                 
                 faces = ms.current_mesh().face_matrix()
