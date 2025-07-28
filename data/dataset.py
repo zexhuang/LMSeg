@@ -335,14 +335,14 @@ class SUMDataset(Dataset):
                 vertices = ms.current_mesh().vertex_matrix()
                 normals = ms.current_mesh().face_normal_matrix()
         
-                mask_color = ms.current_mesh().face_color_matrix() * 255.0
-                mask = np.array([self.mask_dict[str(rgba)] for rgba in mask_color.tolist()], dtype=np.uint8)
+                mask_color = ms.current_mesh().face_color_matrix() 
+                mask = np.array([self.mask_dict[str(rgba)] for rgba in (mask_color * 255.0).tolist()], dtype=np.uint8)
               
                 ms.compute_color_transfer_vertex_to_face()
-                v_color = ms.current_mesh().vertex_color_matrix() * 255.0    
+                v_color = ms.current_mesh().vertex_color_matrix()
                 v_color = (v_color * 255.0).astype(np.uint8)
                     
-                f_color = ms.current_mesh().face_color_matrix() * 255.0
+                f_color = ms.current_mesh().face_color_matrix()
                 f_color = (f_color * 255.0).astype(np.uint8)
                 
                 face_attr = {'mask': mask,
