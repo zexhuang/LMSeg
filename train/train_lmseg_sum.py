@@ -34,6 +34,10 @@ if __name__ == '__main__':
          
         if args.path is not None:
             cfg['path'] = args.path
+            
+        print("\nLoaded Configuration:\n" + "="*25)
+        print(yaml.dump(cfg, sort_keys=False, default_flow_style=False))
+        print("="*25 + "\n")
         
         train_set = SUMDataset(root=args.root, 
                                split='train', 

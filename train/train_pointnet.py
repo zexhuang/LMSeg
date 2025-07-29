@@ -30,6 +30,10 @@ if __name__ == '__main__':
     with open(args.cfg, 'r') as f:
         cfg = yaml.safe_load(f)    
         
+        print("\nLoaded Configuration:\n" + "="*25)
+        print(yaml.dump(cfg, sort_keys=False, default_flow_style=False))
+        print("="*25 + "\n")
+        
         train_set = BudjBimWallMeshDataset(root=args.root, 
                                            split='train', 
                                            load_feature=cfg['load_feature'])
