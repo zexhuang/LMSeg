@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
         loss = CrossEntropyWithLabelWeight(ignore_index=0, 
                                            label_smoothing=0.1, 
-                                           label_weights=1 / torch.log(1.2 + class_weight))
+                                           label_weights=class_weight)
         
         trainer = Trainer(cfg=cfg) 
         trainer.fit(model, 
