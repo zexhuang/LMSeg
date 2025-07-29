@@ -152,7 +152,7 @@ class GAPL(nn.Module):
         
         # Geometry Extraction        
         pos_embedding = self.embedding(pos_rel)
-        x_w = pos_embedding * x_w + pos_embedding
+        x_w = pos_embedding * (x_w + pos_embedding)
         
         # Shared Residual MLP
         out_x = self.shared_res_mlp(x_w)
