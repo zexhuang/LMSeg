@@ -23,11 +23,17 @@ if __name__ == '__main__':
     parser.add_argument('--root', type=str,  metavar='N',
                         default='data/SUM',
                         help='path to dataset folder')
+    parser.add_argument('--path', type=str,  metavar='N',
+                        default=None,
+                        help='path to save model')
     args = parser.parse_args()
     
     
     with open(args.cfg, 'r') as f:
-        cfg = yaml.safe_load(f)    
+        cfg = yaml.safe_load(f)   
+         
+        if args.path is not None:
+            cfg['path'] = args.path
         
         train_set = SUMDataset(root=args.root, 
                                split='train', 
@@ -61,11 +67,14 @@ if __name__ == '__main__':
                          cfg['alpha'], 
                          cfg['beta'])
         
-        labels = torch.hstack([data.y for data in train_loader])    
-        weight = torch.bincount(labels) / torch.sum(labels)
+        all_labels = torch.cat([data.y for data in train_set])
+        class_freq = torch.bincount(all_labels, minlength=cfg['out_channels']).float()
+        class_weight = 1.0 / torch.log(1.2 + (class_freq / class_freq.sum()))
+        class_weight[0] = 0.0
+
         loss = CrossEntropyWithLabelWeight(ignore_index=0, 
                                            label_smoothing=0.1, 
-                                           label_weights=1 / torch.log(1.2 + weight))
+                                           label_weights=1 / torch.log(1.2 + class_weight))
         
         trainer = Trainer(cfg=cfg) 
         trainer.fit(model, 

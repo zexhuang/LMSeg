@@ -22,11 +22,17 @@ if __name__ == '__main__':
     parser.add_argument('--root', type=str,  metavar='N',
                         default='data/BudjBimWall',
                         help='path to dataset folder')
+    parser.add_argument('--path', type=str,  metavar='N',
+                        default=None,
+                        help='path to save model')
     args = parser.parse_args()
     
     
     with open(args.cfg, 'r') as f:
-        cfg = yaml.safe_load(f)    
+        cfg = yaml.safe_load(f)   
+         
+        if args.path is not None:
+            cfg['path'] = args.path
         
         train_set = BudjBimWallMeshDataset(root=args.root, 
                                            split='train', 
