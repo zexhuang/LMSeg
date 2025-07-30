@@ -108,7 +108,8 @@ class GAPL(nn.Module):
                  alpha: float, 
                  beta: float,
                  num_block: int,
-                 t: float = 1.0):
+                 t_max: float = 1.0,
+                 t_avg: float = 0.0):
         super().__init__()
         self.embedding_channels = embedding_channels        
         self.alpha = alpha
@@ -120,8 +121,9 @@ class GAPL(nn.Module):
         self.shared_lin = MLP([(embedding_channels + 3) * 2, embedding_channels], plain_last=False)
         self.embedding = PosEmbedding(3, embedding_channels, alpha, beta)
         self.shared_res_mlp = nn.Sequential(*[ResMLP(embedding_channels) for _ in range(num_block)])
-                
-        self.gen_aggr = SoftmaxAggregation(t=t, learn=True, channels=embedding_channels)       
+                        
+        self.gen_aggr_max = SoftmaxAggregation(t=t_max, learn=True, channels=embedding_channels)  
+        self.gen_aggr_avg = SoftmaxAggregation(t=t_avg, learn=True, channels=embedding_channels)       
         
     def forward(self, pos, x, edge_index, pos_c=None, x_c=None, batch=None):
         pos_c = pos.clone() if pos_c is None else pos_c
@@ -159,7 +161,6 @@ class GAPL(nn.Module):
         
         # Aggregations
         dim_size = None if batch is None else batch.shape[0] 
-        msg = scatter(out_x, idx_i, dim=0, dim_size=dim_size, reduce='max') \
-            + scatter(out_x, idx_i, dim=0, dim_size=dim_size, reduce='mean') \
-            + self.gen_aggr(x=out_x, index=idx_i, dim_size=dim_size, dim=0)
+        msg = self.gen_aggr_max(x=out_x, index=idx_i, dim_size=dim_size, dim=0) \
+            + self.gen_aggr_avg(x=out_x, index=idx_i, dim_size=dim_size, dim=0)
         return msg
