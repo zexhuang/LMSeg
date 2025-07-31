@@ -85,15 +85,14 @@ class Trainer(BaseTrainer):
         early_stopping = EarlyStopping(path=self.path, patience=self.patience)
 
         for ep in tqdm(range(1, self.epoch + 1)):
-            train_loss = self._train_one_epoch(model, optimizer, criterion, train_loader)
+            train_loss = self._train_one_epoch(model, optimizer, criterion, train_loader, self.device)
             self.writer.add_scalar('Loss/train', train_loss, ep)
             self.writer.add_scalar('LRate/train', lr_scheduler.get_last_lr()[0], ep)
             lr_scheduler.step()
 
             if ep % save_period == 0:
                 if val_loader:
-                    # self.device = 'cpu'
-                    val_loss = self._evaluate(model, criterion, val_loader)
+                    val_loss = self._evaluate(model, criterion, val_loader, self.device)
                     self.writer.add_scalar('Loss/val', val_loss, ep)
                     early_stopping(val_loss, model, optimizer, ep, lr_scheduler.get_last_lr())
                     if early_stopping.early_stop:
@@ -102,8 +101,8 @@ class Trainer(BaseTrainer):
                 else:
                     self._save_ckpt(model, ckpt_name=f'epoch{ep}')
 
-    def _train_one_epoch(self, model, optimizer, criterion, dataloader):
-        model.train().to(self.device)
+    def _train_one_epoch(self, model, optimizer, criterion, dataloader, device):
+        model.train().to(device)
         total_loss = 0.0
 
         for data in dataloader:
@@ -117,8 +116,8 @@ class Trainer(BaseTrainer):
 
         return total_loss / len(dataloader.dataset)
 
-    def _evaluate(self, model, criterion, dataloader):
-        model.eval().to('cpu')
+    def _evaluate(self, model, criterion, dataloader, device):
+        model.eval().to(device)
         total_loss = 0.0
 
         with torch.no_grad():
@@ -189,14 +188,14 @@ class KPConvTrainer(BaseTrainer):
         early_stopping = EarlyStopping(path=self.path, patience=self.patience)
 
         for ep in tqdm(range(1, self.epoch + 1)):
-            train_loss = self._train_one_epoch(model, optimizer, criterion, train_loader)
+            train_loss = self._train_one_epoch(model, optimizer, criterion, train_loader, self.device)
             self.writer.add_scalar('Loss/train', train_loss, ep)
             self.writer.add_scalar('LRate/train', lr_scheduler.get_last_lr()[0], ep)
             lr_scheduler.step()
 
             if ep % save_period == 0:
                 if val_loader:
-                    val_loss = self._evaluate(model, criterion, val_loader)
+                    val_loss = self._evaluate(model, criterion, val_loader, self.device)
                     self.writer.add_scalar('Loss/val', val_loss, ep)
                     early_stopping(val_loss, model, optimizer, ep, lr_scheduler.get_last_lr())
                     if early_stopping.early_stop:
@@ -205,12 +204,12 @@ class KPConvTrainer(BaseTrainer):
                 else:
                     self._save_ckpt(model, ckpt_name=f'epoch{ep}')
 
-    def _train_one_epoch(self, model, optimizer, criterion, dataloader):
-        model.train().to(self.device)
+    def _train_one_epoch(self, model, optimizer, criterion, dataloader, device):
+        model.train().to(device)
         total_loss = 0.0
 
         for data in dataloader:
-            data = self._to_device(data)
+            data = self._to_device(data, device)
             optimizer.zero_grad()
             out = model(data)
             loss = criterion(out, data['labels'])
@@ -220,13 +219,13 @@ class KPConvTrainer(BaseTrainer):
 
         return total_loss / len(dataloader.dataset)
 
-    def _evaluate(self, model, criterion, dataloader):
-        model.eval().to('cpu')
+    def _evaluate(self, model, criterion, dataloader, device):
+        model.eval().to(device)
         total_loss = 0.0
 
         with torch.no_grad():
             for data in dataloader:
-                data = self._to_device(data, device='cpu')
+                data = self._to_device(data, device)
                 out = model(data)
                 loss = criterion(out, data['labels'])
                 total_loss += len(data) * loss.item()
