@@ -92,6 +92,7 @@ class Trainer(BaseTrainer):
 
             if ep % save_period == 0:
                 if val_loader:
+                    # self.device = 'cpu'
                     val_loss = self._evaluate(model, criterion, val_loader)
                     self.writer.add_scalar('Loss/val', val_loss, ep)
                     early_stopping(val_loss, model, optimizer, ep, lr_scheduler.get_last_lr())
