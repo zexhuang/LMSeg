@@ -157,7 +157,12 @@ class Trainer(BaseTrainer):
 
         if verbose:
             for name, cm in metric.items():
-                print(f"{name}: {cm.compute().cpu().item()}")
+                value = cm.compute().cpu()
+                if value.numel() == 1:
+                    print(f"{name}: {value.item():.4f}")
+                else:
+                    formatted_values = ", ".join(f"{v:.4f}" for v in value.numpy())
+                    print(f"{name}: [{formatted_values}]")
 
         return metric
     
@@ -255,7 +260,12 @@ class KPConvTrainer(BaseTrainer):
 
         if verbose:
             for name, cm in metric.items():
-                print(f"{name}: {cm.compute().cpu().item()}")
+                value = cm.compute().cpu()
+                if value.numel() == 1:
+                    print(f"{name}: {value.item():.4f}")
+                else:
+                    formatted_values = ", ".join(f"{v:.4f}" for v in value.numpy())
+                    print(f"{name}: [{formatted_values}]")
 
         return metric
 
