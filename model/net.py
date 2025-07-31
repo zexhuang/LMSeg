@@ -506,18 +506,19 @@ class LMSegNet(nn.Module):
         self.init_weights()
         
     def init_weights(self):
-        for param in self.Enc.parameters():
-            if param.ndim > 1: 
-                nn.init.kaiming_normal_(param, mode='fan_in', nonlinearity='relu')
-            
-        for param in self.Dec.parameters():
-            if param.ndim > 1: 
-                nn.init.kaiming_normal_(param, mode='fan_in', nonlinearity='relu')
-            
-        for param in self.mlp.parameters():
-            if param.ndim > 1: 
-                nn.init.kaiming_normal_(param, mode='fan_in', nonlinearity='relu')
-        
+        def weights_init(m):
+            if isinstance(m, (nn.Linear, nn.Conv1d, nn.Conv2d)):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+        self.Enc.apply(weights_init)
+        self.Dec.apply(weights_init)
+        self.mlp.apply(weights_init)
+
     def forward(self, data):
         pos, x, edge_index, batch, ptr = data.pos, data.x, \
                                          data.edge_index, data.batch, data.ptr
