@@ -96,11 +96,6 @@ class Trainer(BaseTrainer):
                 if val_loader:
                     val_loss = self._evaluate(model, criterion, val_loader, self.device)
                     self.writer.add_scalar('Loss/val', val_loss, ep)
-                    early_stopping(val_loss, model, optimizer, ep, lr_scheduler.get_last_lr())
-                    if early_stopping.early_stop:
-                        logging.info(f"Early stopping at epoch {ep}.")
-                        break
-                else:
                     self._save_ckpt(model, ckpt_name=f'epoch{ep}')
 
     def _train_one_epoch(self, model, optimizer, criterion, dataloader, device):
@@ -199,11 +194,6 @@ class KPConvTrainer(BaseTrainer):
                 if val_loader:
                     val_loss = self._evaluate(model, criterion, val_loader, self.device)
                     self.writer.add_scalar('Loss/val', val_loss, ep)
-                    early_stopping(val_loss, model, optimizer, ep, lr_scheduler.get_last_lr())
-                    if early_stopping.early_stop:
-                        logging.info(f"Early stopping at epoch {ep}.")
-                        break
-                else:
                     self._save_ckpt(model, ckpt_name=f'epoch{ep}')
 
     def _train_one_epoch(self, model, optimizer, criterion, dataloader, device):
