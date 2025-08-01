@@ -70,7 +70,8 @@ class GAEncoder(nn.Module):
                                              x, 
                                              edge_index_hier, 
                                              pos_pool, 
-                                             x_pool)
+                                             x_pool,
+                                             batch=batch_pool)
             # Local feature aggregation
             edge_index_local = self.edge_pool(x=x_hier, 
                                               pos=pos_pool, 
@@ -138,7 +139,8 @@ class HGAPEncoder(nn.Module):
                                              x, 
                                              edge_index_hier, 
                                              pos_pool, 
-                                             x_pool)
+                                             x_pool,
+                                             batch=batch_pool)
             x = self.res_convs[i](x_hier)
             ptr, pos, batch = ptr_pool, pos_pool, batch_pool
             
@@ -280,7 +282,8 @@ class Encoder(nn.Module):
                                              x, 
                                              edge_index_hier, 
                                              pos_pool, 
-                                             x_pool)
+                                             x_pool,
+                                             batch=batch_pool)
             # Local feature aggregation
             edge_index_local = self.edge_pool(x=x_hier, 
                                               pos=pos_pool, 

@@ -84,8 +84,8 @@ class GAL(nn.Module):
         x_i, x_j = torch.cat([x_i, pos_i], dim=-1), torch.cat([x_j, pos_j], dim=-1)
 
         # Normalize Node Feature
-        std_x = torch.std(x_j - x_i)
-        x_rel = (x_j - x_i) / (std_x + 1e-5)
+        x_diff = x_j - x_i
+        x_rel = x_diff / (torch.std(x_diff, unbiased=False) + 1e-5)
         x_rel = self.affine_w * x_rel + self.affine_b
         
         # Feature Expansion
@@ -96,7 +96,7 @@ class GAL(nn.Module):
         out_x = self.shared_res_mlp(x_w)
         
         # Aggregations
-        dim_size = None if batch is None else batch.shape[0] 
+        dim_size = x_c.size(0)
         msg = scatter(out_x, idx_i, dim=0, dim_size=dim_size, reduce='max') \
             + scatter(out_x, idx_i, dim=0, dim_size=dim_size, reduce='mean') 
         return msg
@@ -140,17 +140,17 @@ class GAPL(nn.Module):
         x_i, x_j = torch.cat([x_i, pos_i], dim=-1), torch.cat([x_j, pos_j], dim=-1)
                 
         # Normalize Node Feature
-        std_x = torch.std(x_j - x_i)
-        x_rel = (x_j - x_i) / (std_x + 1e-5)
+        x_diff = x_j - x_i
+        x_rel = x_diff / (torch.std(x_diff, unbiased=False) + 1e-5)
         x_rel = self.affine_w * x_rel + self.affine_b
         
         # Feature Expansion
         x_w = torch.cat([x_i, x_rel], dim=-1)
         x_w = self.shared_lin(x_w)
         
-        # Normalize Node Pos 
-        std_pos = torch.std(pos_j - pos_i)
-        pos_rel = (pos_j - pos_i) / (std_pos + 1e-5)
+        # Normalize Node Position
+        pos_diff = pos_j - pos_i
+        pos_rel = pos_diff / (torch.std(pos_diff, unbiased=False) + 1e-5)
         
         # Geometry Extraction        
         pos_embedding = self.embedding(pos_rel)
@@ -160,7 +160,7 @@ class GAPL(nn.Module):
         out_x = self.shared_res_mlp(x_w)
         
         # Aggregations
-        dim_size = None if batch is None else batch.shape[0] 
+        dim_size = x_c.size(0)
         msg = self.gen_aggr_max(x=out_x, index=idx_i, dim_size=dim_size, dim=0) \
             + self.gen_aggr_avg(x=out_x, index=idx_i, dim_size=dim_size, dim=0)
         return msg
