@@ -79,7 +79,9 @@ if __name__ == '__main__':
         model.get_trans_feat = False
         trainer.eval(model, 
                      test_loader, 
-                     metric={'f1': BinaryF1Score(), 
-                             'mIoU': BinaryJaccardIndex()},
-                     ckpt="best_val_epoch.pth",
+                     metric={
+                         'f1': BinaryF1Score(), 
+                         'mIoU': BinaryJaccardIndex()
+                    },
+                     ckpt=f"epoch{cfg['epoch']}.pth",
                      verbose=True)

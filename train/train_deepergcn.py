@@ -67,5 +67,5 @@ if __name__ == '__main__':
                     val_loader=val_loader)
         trainer.eval(model, 
                      test_loader, 
-                     ckpt="best_val_epoch.pth",
+                     ckpt=f"epoch{cfg['epoch']}.pth",
                      verbose=True)
