@@ -13,7 +13,7 @@ w_decay: 0.0001
 device: cuda
 
 # model
-in_channels: 19
+in_channels: 10
 out_channels: 1
 
 # save

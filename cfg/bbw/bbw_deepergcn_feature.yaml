@@ -12,7 +12,7 @@ w_decay: 0.0001
 device: cuda
 
 # model
-in_channels: 18
+in_channels: 9
 out_channels: 1
 hid_channels: 128
 num_layers: 28

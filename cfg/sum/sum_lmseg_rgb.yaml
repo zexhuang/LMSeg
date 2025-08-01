@@ -1,6 +1,6 @@
 # dataset
 dataset: sum
-load_feature: all
+load_feature: rgb
 batch: 1
 workers: 8
 
@@ -18,14 +18,14 @@ pool_factors:
   - 3
   - 3
   - 3
-num_nbrs: 12
+num_nbrs: 32
 num_block: 1
 alpha: 0.001
 beta: 0.01
 
-in_channels: 18
-hid_channels: 30
+in_channels: 6
+hid_channels: 36
 out_channels: 7
 
 # save
-path: save/sum/sum_lmseg_feature_nbrs_12
+path: save/sum/sum_lmseg_rgb
