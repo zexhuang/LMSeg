@@ -107,5 +107,5 @@ if __name__ == '__main__':
         trainer.eval(model, 
                      test_loader, 
                      metric=metric_dict, 
-                     ckpt=f"epoch{cfg['epoch']}",
+                     ckpt="best_val_epoch.pth",
                      verbose=True)

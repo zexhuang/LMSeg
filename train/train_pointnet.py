@@ -81,5 +81,5 @@ if __name__ == '__main__':
                      test_loader, 
                      metric={'f1': BinaryF1Score(), 
                              'mIoU': BinaryJaccardIndex()},
-                     ckpt=f"epoch{cfg['epoch']}",
+                     ckpt="best_val_epoch.pth",
                      verbose=True)
