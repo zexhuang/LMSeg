@@ -63,7 +63,7 @@ class GAEncoder(nn.Module):
             # Hierarchical feature aggregation
             edge_index_hier = knn(x=pos, 
                                   y=pos_pool, 
-                                  k=self.num_nbrs + 1,
+                                  k=self.num_nbrs,
                                   batch_x=batch, 
                                   batch_y=batch_pool)
             x_hier = self.down_convs_hier[i](pos, 
@@ -132,7 +132,7 @@ class HGAPEncoder(nn.Module):
             # Hierarchical feature aggregation
             edge_index_hier = knn(x=pos, 
                                   y=pos_pool, 
-                                  k=self.num_nbrs + 1,
+                                  k=self.num_nbrs,
                                   batch_x=batch, 
                                   batch_y=batch_pool)
             x_hier = self.down_convs_hier[i](pos, 
@@ -275,7 +275,7 @@ class Encoder(nn.Module):
             # Hierarchical feature aggregation
             edge_index_hier = knn(x=pos, 
                                   y=pos_pool, 
-                                  k=self.num_nbrs + 1,
+                                  k=self.num_nbrs,
                                   batch_x=batch, 
                                   batch_y=batch_pool)
             x_hier = self.down_convs_hier[i](pos, 
