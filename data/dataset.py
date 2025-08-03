@@ -1,44 +1,185 @@
 import os
-from typing import Optional, Union
-from pathlib import Path
-from tqdm import tqdm
-
 import numpy as np
+
 import trimesh
 import pymeshlab as pml 
 
 import torch
 import torch_geometric.transforms as T
+
+from typing import Optional, Union
+from pathlib import Path
+from tqdm import tqdm
+
+from torch import nn
 from torch_geometric.data import Dataset, Data
 from torch_geometric.utils import (coalesce, remove_self_loops,
                                    to_undirected, is_undirected)
 
 
-def rgb_to_hsv(rgb: np.ndarray):
-    """ convert RGB to HSV color space
+class ColorJitter(nn.Module):
+    def __init__(
+        self,
+        brightness=0.2,
+        contrast=0.2,
+        saturation=0.2,
+        hue=0.1,
+        color_dropout=0.05,
+        noise_std=0.01,
+        dropout_type='gray',
+    ):
+        super().__init__()
+        self.brightness = brightness
+        self.contrast = contrast
+        self.saturation = saturation
+        self.hue = hue
+        self.color_dropout = color_dropout
+        self.noise_std = noise_std
+        self.dropout_type = dropout_type
+        assert dropout_type in ['gray', 'zero']
 
-    :param rgb: np.ndarray
-    :return: np.ndarray
-    """
+    def forward(self, data: Data) -> torch.Tensor:
+        """
+        Args:
+            Data object containing 'rgb' attribute of shape.
+        Returns:
+            Augmented RGB tensor of same shape
+        """
         
-    assert rgb.shape[-1] == 3
+        if not hasattr(data, 'rgb'):
+            return data
+        
+        rgb = data.rgb.contiguous()
+        rgb = rgb.view(-1, 4, 3).float()
+        
+        N, P, _ = rgb.shape
+        device = rgb.device
+        rgb = rgb.clamp(0, 1)
+
+        # Brightness (scale per-sample)
+        if self.brightness > 0:
+            factors = torch.empty(N, 1, 1, device=device).uniform_(
+                1 - self.brightness, 1 + self.brightness)
+            rgb = rgb * factors
+
+        # Contrast
+        if self.contrast > 0:
+            means = rgb.mean(dim=1, keepdim=True)
+            factors = torch.empty(N, 1, 1, device=device).uniform_(
+                1 - self.contrast, 1 + self.contrast)
+            rgb = (rgb - means) * factors + means
+
+        # Saturation
+        if self.saturation > 0:
+            weights = torch.tensor([0.299, 0.587, 0.114], device=device).view(1, 1, 3)
+            gray = (rgb * weights).sum(dim=-1, keepdim=True)
+            factors = torch.empty(N, 1, 1, device=device).uniform_(
+                1 - self.saturation, 1 + self.saturation)
+            rgb = (rgb - gray) * factors + gray
+
+        # Hue adjustment (convert RGB -> HSV -> RGB)
+        if self.hue > 0:
+            hue_shifts = torch.empty(N, device=device).uniform_(-self.hue, self.hue)
+            rgb = self.adjust_hue(rgb, hue_shifts)
+
+        # Color dropout
+        if self.color_dropout > 0:
+            mask = torch.rand(N, device=device) < self.color_dropout
+            if mask.any():
+                if self.dropout_type == 'gray':
+                    gray = rgb.mean(dim=2, keepdim=True)
+                    rgb[mask] = gray[mask].expand(-1, P, 3)
+                else:  # zero
+                    rgb[mask] = 0.0
+
+        # Add Gaussian noise
+        if self.noise_std > 0:
+            noise = torch.randn_like(rgb) * self.noise_std
+            rgb = rgb + noise
+
+        data.rgb = rgb.clamp(0, 1).view_as(data.rgb)
+        return data
+
+    def adjust_hue(self, rgb: torch.Tensor, hue_shift: torch.Tensor) -> torch.Tensor:
+        """Adjust hue per sample for batch of (N, P, 3) RGB"""
+        hsv = self.rgb_to_hsv(rgb)
+        hsv[..., 0] = (hsv[..., 0] + hue_shift.view(-1, 1)) % 1.0
+        return self.hsv_to_rgb(hsv)
+
+    def rgb_to_hsv(self, rgb):
+        r, g, b = rgb.unbind(-1)
+        maxc = rgb.max(dim=-1).values
+        minc = rgb.min(dim=-1).values
+        v = maxc
+        deltac = maxc - minc
+
+        s = deltac / (maxc + 1e-8)
+        s[maxc == 0] = 0
+
+        h = torch.zeros_like(deltac)
+        mask = deltac > 0
+        rc = (maxc - r) / (deltac + 1e-8)
+        gc = (maxc - g) / (deltac + 1e-8)
+        bc = (maxc - b) / (deltac + 1e-8)
+
+        h[(maxc == r) & mask] = (bc - gc)[(maxc == r) & mask]
+        h[(maxc == g) & mask] = 2.0 + (rc - bc)[(maxc == g) & mask]
+        h[(maxc == b) & mask] = 4.0 + (gc - rc)[(maxc == b) & mask]
+        h = (h / 6.0).remainder(1.0)
+
+        return torch.stack((h, s, v), dim=-1)
+
+    def hsv_to_rgb(self, hsv):
+        h, s, v = hsv.unbind(-1)
+        h = h % 1.0
+        i = torch.floor(h * 6).to(torch.int64)
+        f = h * 6 - i
+        i = i % 6
+
+        p = v * (1 - s)
+        q = v * (1 - f * s)
+        t = v * (1 - (1 - f) * s)
+
+        out = torch.stack([
+            torch.stack([v, t, p], dim=-1),
+            torch.stack([q, v, p], dim=-1),
+            torch.stack([p, v, t], dim=-1),
+            torch.stack([p, q, v], dim=-1),
+            torch.stack([t, p, v], dim=-1),
+            torch.stack([v, p, q], dim=-1),
+        ], dim=-2)
     
-    rgb = rgb.astype(np.float32)
-    maxv = np.amax(rgb, axis=-1)
-    maxc = np.argmax(rgb, axis=-1)
-    minv = np.amin(rgb, axis=-1)
-    minc = np.argmin(rgb, axis=-1)
+        i = i[..., None, None].expand(-1, -1, 1, 3)
+        rgb = torch.gather(out, dim=2, index=i)  # shape: (n, 4, 1, 3)
+        
+        return rgb.squeeze(2)  # final shape: (n, 4, 3)
+    
 
-    hsv = np.zeros(rgb.shape, dtype=np.float32)
-    hsv[maxc == minc, 0] = np.zeros(hsv[maxc == minc, 0].shape)
-    hsv[maxc == 0, 0] = (((rgb[..., 1] - rgb[..., 2]) * 60.0 / (maxv - minv + np.spacing(1))) % 360.0)[maxc == 0]
-    hsv[maxc == 1, 0] = (((rgb[..., 2] - rgb[..., 0]) * 60.0 / (maxv - minv + np.spacing(1))) + 120.0)[maxc == 1]
-    hsv[maxc == 2, 0] = (((rgb[..., 0] - rgb[..., 1]) * 60.0 / (maxv - minv + np.spacing(1))) + 240.0)[maxc == 2]
-    hsv[maxv == 0, 1] = np.zeros(hsv[maxv == 0, 1].shape)
-    hsv[maxv != 0, 1] = (1 - minv / (maxv + np.spacing(1)))[maxv != 0]
-    hsv[..., 2] = maxv
+# def rgb_to_hsv(rgb: np.ndarray):
+#     """ convert RGB to HSV color space
 
-    return hsv
+#     :param rgb: np.ndarray
+#     :return: np.ndarray
+#     """
+        
+#     assert rgb.shape[-1] == 3
+    
+#     rgb = rgb.astype(np.float32)
+#     maxv = np.amax(rgb, axis=-1)
+#     maxc = np.argmax(rgb, axis=-1)
+#     minv = np.amin(rgb, axis=-1)
+#     minc = np.argmin(rgb, axis=-1)
+
+#     hsv = np.zeros(rgb.shape, dtype=np.float32)
+#     hsv[maxc == minc, 0] = np.zeros(hsv[maxc == minc, 0].shape)
+#     hsv[maxc == 0, 0] = (((rgb[..., 1] - rgb[..., 2]) * 60.0 / (maxv - minv + np.spacing(1))) % 360.0)[maxc == 0]
+#     hsv[maxc == 1, 0] = (((rgb[..., 2] - rgb[..., 0]) * 60.0 / (maxv - minv + np.spacing(1))) + 120.0)[maxc == 1]
+#     hsv[maxc == 2, 0] = (((rgb[..., 0] - rgb[..., 1]) * 60.0 / (maxv - minv + np.spacing(1))) + 240.0)[maxc == 2]
+#     hsv[maxv == 0, 1] = np.zeros(hsv[maxv == 0, 1].shape)
+#     hsv[maxv != 0, 1] = (1 - minv / (maxv + np.spacing(1)))[maxv != 0]
+#     hsv[..., 2] = maxv
+
+#     return hsv
     
     
 class BudjBimLandscapeMeshDataset(Dataset):
@@ -80,25 +221,29 @@ class BudjBimLandscapeMeshDataset(Dataset):
             edge_index = coalesce(edge_index, num_nodes=pos.shape[0])
             edge_index, _ = remove_self_loops(edge_index)
             
-            data = Data(face=face, rgba=face_rgba / 255.0, pos=pos, edge_index=edge_index) 
+            data = Data(face=face, pos=pos, face_rgba=(face_rgba / 255.0).clamp(0, 1), edge_index=edge_index) 
             # mesh normals 
-            data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32))  
-            # mesh (HSV) color  
+            data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32)).clamp(-1, 1)  
+            # mesh (RGB) colors  
             vertex_id = data.face.t().numpy().reshape(-1) 
             v_rgba = np.asarray(plydata.visual.vertex_colors, dtype=np.float32)[vertex_id].reshape(-1, 3, 4)
             f_rgba = np.asarray(plydata.visual.face_colors, dtype=np.float32)
+            data.rgb = torch.from_numpy(np.concatenate([(v_rgba[:, 0, 0:3] / 255.0),
+                                                        (v_rgba[:, 1, 0:3] / 255.0),
+                                                        (v_rgba[:, 2, 0:3] / 255.0),
+                                                        (f_rgba[:, 0:3] / 255.0)], axis=1)).clamp(0, 1)
             
-            hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
-                                         rgb_to_hsv(v_rgba[:, 1, 0:3]), \
-                                         rgb_to_hsv(v_rgba[:, 2, 0:3]), \
-                                         rgb_to_hsv(f_rgba[:, 0:3])
+            # hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
+            #                              rgb_to_hsv(v_rgba[:, 1, 0:3]), \
+            #                              rgb_to_hsv(v_rgba[:, 2, 0:3]), \
+            #                              rgb_to_hsv(f_rgba[:, 0:3])
                                         
-            hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
-            hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
-                                                   hsv_j / hsv_max, 
-                                                   hsv_k / hsv_max, 
-                                                   hsv_f / hsv_max], axis=1))    
-            data.hsv = hsv
+            # hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
+            # hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
+            #                                        hsv_j / hsv_max, 
+            #                                        hsv_k / hsv_max, 
+            #                                        hsv_f / hsv_max], axis=1))    
+            # data.hsv = hsv
                 
             if self.pre_filter is not None and not self.pre_filter(data):
                 continue
@@ -114,7 +259,7 @@ class BudjBimLandscapeMeshDataset(Dataset):
     def get(self, idx):        
         data = torch.load(self.data_list[idx], weights_only=False)    
         data.name = f'{self.data_list[idx].stem}.pt'
-        data.x = torch.cat([data.normals, data.hsv], dim=-1)        
+        data.x = torch.cat([data.normals, data.rgb], dim=-1)        
         return data
     
     
@@ -161,7 +306,8 @@ class BudjBimWallMeshDataset(Dataset):
                                     T.RandomRotate(1, axis=0),
                                     T.RandomRotate(1, axis=1),
                                     T.RandomRotate(180, axis=2),
-                                    T.RandomJitter(0.001)]),
+                                    T.RandomJitter(0.001),
+                                    ColorJitter()]),
                 'test': T.Compose([T.NormalizeScale()])
                 }
         
@@ -184,7 +330,8 @@ class BudjBimWallMeshDataset(Dataset):
                 face_rgba = torch.from_numpy(np.asarray(plydata.visual.face_colors, dtype=np.float32))
                 pos = torch.from_numpy(np.asarray(plydata.triangles_center, dtype=np.float32)) 
                 mask = torch.from_numpy(np.asarray(plydata.metadata['_ply_raw']['face']['data']['mask'], dtype=np.float32))
-                if mask.ndim == 1: mask = mask.unsqueeze(1)
+                if mask.ndim == 1: 
+                    mask = mask.unsqueeze(1)
                 
                 edge_index = torch.from_numpy(np.asarray(plydata.face_adjacency.copy(), dtype=np.int64)).t()
                 if not is_undirected(edge_index, num_nodes=pos.shape[0]):
@@ -192,25 +339,29 @@ class BudjBimWallMeshDataset(Dataset):
                 edge_index = coalesce(edge_index, num_nodes=pos.shape[0])
                 edge_index, _ = remove_self_loops(edge_index)
                 
-                data = Data(face=face, rgba=face_rgba / 255.0, pos=pos, edge_index=edge_index, y=mask) 
+                data = Data(face=face, pos=pos, face_rgba=(face_rgba / 255.0).clamp(0, 1), edge_index=edge_index, y=mask) 
                 # mesh normals 
-                data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32))  
-                # mesh (HSV) color  
+                data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32)).clamp(-1, 1)  
+                # mesh (RGB) colors
                 vertex_id = data.face.t().numpy().reshape(-1) 
                 v_rgba = np.asarray(plydata.visual.vertex_colors, dtype=np.float32)[vertex_id].reshape(-1, 3, 4)
                 f_rgba = np.asarray(plydata.visual.face_colors, dtype=np.float32)
+                data.rgb = torch.from_numpy(np.concatenate([(v_rgba[:, 0, 0:3] / 255.0),
+                                                            (v_rgba[:, 1, 0:3] / 255.0),
+                                                            (v_rgba[:, 2, 0:3] / 255.0),
+                                                            (f_rgba[:, 0:3] / 255.0)], axis=1)).clamp(0, 1)
                 
-                hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
-                                             rgb_to_hsv(v_rgba[:, 1, 0:3]), \
-                                             rgb_to_hsv(v_rgba[:, 2, 0:3]), \
-                                             rgb_to_hsv(f_rgba[:, 0:3])
+                # hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
+                #                              rgb_to_hsv(v_rgba[:, 1, 0:3]), \
+                #                              rgb_to_hsv(v_rgba[:, 2, 0:3]), \
+                #                              rgb_to_hsv(f_rgba[:, 0:3])
                                             
-                hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
-                hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
-                                                       hsv_j / hsv_max, 
-                                                       hsv_k / hsv_max, 
-                                                       hsv_f / hsv_max], axis=1))    
-                data.hsv = hsv
+                # hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
+                # hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
+                #                                        hsv_j / hsv_max, 
+                #                                        hsv_k / hsv_max, 
+                #                                        hsv_f / hsv_max], axis=1))    
+                # data.hsv = hsv
                     
                 if self.pre_filter is not None and not self.pre_filter(data):
                     continue
@@ -227,9 +378,9 @@ class BudjBimWallMeshDataset(Dataset):
         data = torch.load(self.data_list[idx], weights_only=False)              
         
         if self.load_feature == 'all':
-            data.x = torch.cat([data.normals, data.hsv], dim=-1)
-        elif self.load_feature == 'hsv':
-            data.x = data.hsv
+            data.x = torch.cat([data.normals, data.rgb], dim=-1)
+        elif self.load_feature == 'rgb':
+            data.x = data.rgb
         elif self.load_feature == 'normals':
             data.x = data.normals
         elif self.load_feature is None:
@@ -243,8 +394,6 @@ class SUMDataset(Dataset):
                  root: Union[Path, str], 
                  split: str = 'train', 
                  load_feature: Optional[str] = 'all',
-                #  num_faces: Optional[int] = 500000,
-                #  qualitythr: float = 0.3,
                  transform = None, 
                  pre_transform = None):
         self.root = Path(root)       
@@ -253,9 +402,6 @@ class SUMDataset(Dataset):
         self.SUM_URLs = {'train': "https://3d.bk.tudelft.nl/opendata/sum/1.0/SUM_Helsinki_C6_mesh/train/", 
                          'validate': "https://3d.bk.tudelft.nl/opendata/sum/1.0/SUM_Helsinki_C6_mesh/validate/",
                          'test': "https://3d.bk.tudelft.nl/opendata/sum/1.0/SUM_Helsinki_C6_mesh/test/"}
-        
-        # self.num_faces = num_faces
-        # self.qualitythr = qualitythr
         
         super().__init__(root, transform, pre_transform)
         
@@ -286,26 +432,26 @@ class SUMDataset(Dataset):
     @property
     def mask_dict(self):
         return {
-            '[0.0, 0.0, 0.0, 255.0]': 0, # unclassified, black
-            '[170.0, 85.0, 0.0, 255.0]': 1, # terrain, brown
-            '[170.0, 84.0, 0.0, 255.0]': 1, # terrain, brown
-            '[0.0, 255.0, 0.0, 255.0]': 2, # high vegetation, green
+            '[0.0, 0.0, 0.0, 255.0]': 0,     # unclassified, black
+            '[170.0, 85.0, 0.0, 255.0]': 1,  # terrain, brown
+            '[170.0, 84.0, 0.0, 255.0]': 1,  # terrain, brown
+            '[0.0, 255.0, 0.0, 255.0]': 2,   # high vegetation, green
             '[255.0, 255.0, 0.0, 255.0]': 3, # building, yellow
             '[0.0, 255.0, 255.0, 255.0]': 4, # water, lightblue
             '[255.0, 0.0, 255.0, 255.0]': 5, # car, pink
-            '[0.0, 0.0, 153.0, 255.0]': 6, # boat, blue
+            '[0.0, 0.0, 153.0, 255.0]': 6,   # boat, blue
             }
         
     @property
     def rgba_dict(self):
         return {
-            0: [0.0, 0.0, 0.0, 255.0], # unclassified, black
-            1: [170.0, 85.0, 0.0, 255.0], # terrain, brown
-            2: [0.0, 255.0, 0.0, 255.0], # high vegetation, green
+            0: [0.0, 0.0, 0.0, 255.0],     # unclassified, black
+            1: [170.0, 85.0, 0.0, 255.0],  # terrain, brown
+            2: [0.0, 255.0, 0.0, 255.0],   # high vegetation, green
             3: [255.0, 255.0, 0.0, 255.0], # building, yellow
             4: [0.0, 255.0, 255.0, 255.0], # water, lightblue
             5: [255.0, 0.0, 255.0, 255.0], # car, pink
-            6: [0.0, 0.0, 153.0, 255.0] # boat, blue
+            6: [0.0, 0.0, 153.0, 255.0]    # boat, blue
             }
     
     def download(self):
@@ -325,10 +471,6 @@ class SUMDataset(Dataset):
                 ms.set_current_mesh(0)
                 ms.set_texture_per_mesh(textname=str(tex))
                 ms.transfer_texture_to_color_per_vertex()
-                # if folder in ['train', 'val', 'test'] and self.num_faces:
-                #     ms.meshing_decimation_quadric_edge_collapse_with_texture(targetfacenum=self.num_faces,
-                #                                                              qualitythr=self.qualitythr,
-                #                                                              preservenormal=True)
                 ms.current_mesh().compact()
                 
                 faces = ms.current_mesh().face_matrix()
@@ -380,25 +522,29 @@ class SUMDataset(Dataset):
                 edge_index = coalesce(edge_index, num_nodes=pos.shape[0])
                 edge_index, _ = remove_self_loops(edge_index)
                     
-                data = Data(face=face, rgba=face_rgba / 255.0, pos=pos, edge_index=edge_index, y=mask)                                          
+                data = Data(face=face, pos=pos, face_rgba=(face_rgba / 255.0).clamp(0, 1), edge_index=edge_index, y=mask)                                         
                 # mesh normals
-                data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32))  
-                # mesh (HSV) color
+                data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32)).clamp(-1, 1)  
+                # mesh (RGB) colors
                 vertex_id = data.face.t().numpy().reshape(-1)
                 v_rgba = np.asarray(plydata.visual.vertex_colors, dtype=np.float32)[vertex_id].reshape(-1, 3, 4)
                 f_rgba = np.asarray(plydata.visual.face_colors, dtype=np.float32)
+                data.rgb = torch.from_numpy(np.concatenate([(v_rgba[:, 0, 0:3] / 255.0),
+                                                            (v_rgba[:, 1, 0:3] / 255.0),
+                                                            (v_rgba[:, 2, 0:3] / 255.0),
+                                                            (f_rgba[:, 0:3] / 255.0)], axis=1)).clamp(0, 1)
 
-                hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
-                                             rgb_to_hsv(v_rgba[:, 1, 0:3]), \
-                                             rgb_to_hsv(v_rgba[:, 2, 0:3]), \
-                                             rgb_to_hsv(f_rgba[:, 0:3])
+                # hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
+                #                              rgb_to_hsv(v_rgba[:, 1, 0:3]), \
+                #                              rgb_to_hsv(v_rgba[:, 2, 0:3]), \
+                #                              rgb_to_hsv(f_rgba[:, 0:3])
                                                 
-                hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
-                hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
-                                                       hsv_j / hsv_max, 
-                                                       hsv_k / hsv_max, 
-                                                       hsv_f / hsv_max], axis=1))
-                data.hsv = hsv        
+                # hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
+                # hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
+                #                                        hsv_j / hsv_max, 
+                #                                        hsv_k / hsv_max, 
+                #                                        hsv_f / hsv_max], axis=1))
+                # data.hsv = hsv        
                 
                 if self.pre_filter is not None and not self.pre_filter(data):
                     continue
@@ -415,7 +561,8 @@ class SUMDataset(Dataset):
                                     T.RandomRotate(1, axis=0),
                                     T.RandomRotate(1, axis=1),
                                     T.RandomRotate(180, axis=2),
-                                    T.RandomJitter(0.001)]),
+                                    T.RandomJitter(0.001),
+                                    ColorJitter()]),
                 'test': T.Compose([T.NormalizeScale()])
                 }
         
@@ -426,9 +573,9 @@ class SUMDataset(Dataset):
         data = torch.load(self.data_list[idx], weights_only=False)             
         
         if self.load_feature == 'all':
-            data.x = torch.cat([data.normals, data.hsv], dim=-1)
-        elif self.load_feature == 'hsv':
-            data.x = data.hsv
+            data.x = torch.cat([data.normals, data.rgb], dim=-1)
+        elif self.load_feature == 'rgb':
+            data.x = data.rgb
         elif self.load_feature == 'normals':
             data.x = data.normals
         elif self.load_feature is None:
@@ -473,9 +620,9 @@ class BBWPointDataset(BudjBimWallMeshDataset):
             data = self.transform(data)
             
         if self.load_feature == 'all':
-            point_features = torch.cat([data.normals, data.hsv], dim=-1)
-        elif self.load_feature == 'hsv':
-            point_features = data.hsv
+            point_features = torch.cat([data.normals, data.rgb], dim=-1)
+        elif self.load_feature == 'rgb':
+            point_features = data.rgb
         elif self.load_feature == 'normals':
             point_features = data.normals
         elif self.load_feature is None:
