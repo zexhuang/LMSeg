@@ -28,6 +28,7 @@ class MeshFeatureEncoder(nn.Module):
 
     def forward(self, x):  # x: (n, 4, 3)
         n, k, _ = x.size()  # k should be 4
+
         pos = self.pos_embed.unsqueeze(0).expand(n, -1, -1)  # (n, 4, pos_dim)
         x_with_pos = torch.cat([x, pos], dim=-1)  # (n, 4, in_dim + pos_dim)
 
@@ -50,21 +51,30 @@ class ResMLP(nn.Module):
                  act: Union[str, Callable, None] = "relu",
                  act_kwargs: Optional[Dict[str, Any]] = None):
         super().__init__()
-        self.conv1 = MLP([in_channels, in_channels], 
-                         norm=norm, norm_kwargs=norm_kwargs,
-                         act=act, act_kwargs=act_kwargs,
-                         plain_last=False,
-                         bias=bias)
-        self.conv2 = MLP([in_channels, in_channels], 
-                         norm=None, norm_kwargs=norm_kwargs,
-                         act=None, act_kwargs=act_kwargs,
-                         plain_last=True,
-                         bias=bias)
+
+        self.conv1 = MLP(
+            [in_channels, in_channels], 
+            norm=norm, norm_kwargs=norm_kwargs,
+            act=act, act_kwargs=act_kwargs,
+            plain_last=False,
+            bias=bias
+        )
+        self.conv2 = MLP(
+            [in_channels, in_channels], 
+            norm=None, norm_kwargs=norm_kwargs,
+            act=None, act_kwargs=act_kwargs,
+            plain_last=True,
+            bias=bias
+        )
+
         self.norm = normalization_resolver(norm, in_channels, **(norm_kwargs or {}))
         self.act = activation_resolver(act, **(act_kwargs or {}))
         
     def forward(self, x):
-        return self.act(self.norm(self.conv2(self.conv1(x))) + x)
+        out = self.conv1(x)
+        out = self.conv2(out)
+        out = self.norm(out)
+        return self.act(out + x)
     
 
 class PosEmbedding(nn.Module):
@@ -73,14 +83,14 @@ class PosEmbedding(nn.Module):
                  out_channels: int, 
                  alpha: float,
                  beta: float):
-        super().__init__()        
+        super().__init__()
         feat_dim = out_channels // in_channels
         self.encoding = PositionalEncoding(feat_dim, alpha, beta)
         
         self.in_channels = in_channels
         self.out_channels = out_channels
         
-    def forward(self, pos):          
+    def forward(self, pos):
         x = self.encoding(pos)
         x = x.view(pos.shape[0], self.out_channels)
         return x
@@ -189,7 +199,7 @@ class GAPL(nn.Module):
         # Shared Residual MLP
         out_x = self.shared_res_mlp(x_w)
         
-        # Aggregations
+        # Learnable Aggregations
         dim_size = x_c.size(0)
         msg = self.gen_aggr_max(x=out_x, index=idx_i, dim_size=dim_size, dim=0) \
             + self.gen_aggr_avg(x=out_x, index=idx_i, dim_size=dim_size, dim=0)
