@@ -11,37 +11,6 @@ from torch_geometric.nn.resolver import (activation_resolver,
                                          normalization_resolver)
 
 
-# class MeshFeatureEncoder(nn.Module):
-#     def __init__(self, in_dim=3, pos_dim=8, out_dim=32, num_tokens=4):
-#         super().__init__()
-#         self.pos_embed = nn.Parameter(torch.randn(num_tokens, pos_dim))  # (4, pos_dim)
-
-#         self.feature_mlp = nn.Sequential(
-#             nn.Linear(in_dim + pos_dim, 64),
-#             nn.ReLU(),
-#             nn.Linear(64, out_dim)
-#         )
-
-#         self.attention_mlp = nn.Sequential(
-#             nn.Linear(in_dim + pos_dim, 32),
-#             nn.ReLU(),
-#             nn.Linear(32, 1)
-#         )
-
-#     def forward(self, x):  # x: (n, 4, 3)
-#         n = x.size(0)
-#         pos = self.pos_embed.unsqueeze(0).expand(n, -1, -1)  # (n, 4, pos_dim)
-#         x_with_pos = torch.cat([x, pos], dim=-1)  # (n, 4, in_dim + pos_dim)
-
-#         feat = self.feature_mlp(x_with_pos)  # (n, 4, out_dim)
-
-#         attn_logits = self.attention_mlp(x_with_pos).squeeze(-1)  # (n, 4)
-#         attn_weights = F.softmax(attn_logits, dim=1).unsqueeze(-1)  # (n, 4, 1)
-
-#         feat = (feat * attn_weights).sum(dim=1)  # (n, out_dim)
-#         return feat
-
-
 class MeshFeatureEncoder(nn.Module):
     def __init__(self, in_dim=3, pos_dim=8, out_dim=32, num_tokens=4, t_max=1.0, t_avg=0.0):
         super().__init__()
