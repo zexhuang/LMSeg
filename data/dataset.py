@@ -7,7 +7,7 @@ import pymeshlab as pml
 import torch
 import torch_geometric.transforms as T
 
-from typing import Optional, Union
+from typing import Union
 from pathlib import Path
 from tqdm import tqdm
 
@@ -209,7 +209,6 @@ class BudjBimLandscapeMeshDataset(Dataset):
         for f in tqdm(raw_ply_files, desc="Processing meshes"):
             plydata = trimesh.load(f, force="mesh")
             plydata.fix_normals()
-            plydata.invert()
             
             face = torch.from_numpy(np.asarray(plydata.faces, dtype=np.int64)).t()
             face_rgba = torch.from_numpy(np.asarray(plydata.visual.face_colors, dtype=np.float32))
@@ -222,28 +221,21 @@ class BudjBimLandscapeMeshDataset(Dataset):
             edge_index, _ = remove_self_loops(edge_index)
             
             data = Data(face=face, pos=pos, face_rgba=(face_rgba / 255.0).clamp(0, 1), edge_index=edge_index) 
-            # mesh normals 
-            data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32)).clamp(-1, 1)  
-            # mesh (RGB) colors  
             vertex_id = data.face.t().numpy().reshape(-1) 
+            # mesh normals 
+            v_normals = np.asarray(plydata.vertex_normals, dtype=np.float32)[vertex_id].reshape(-1, 3, 3)
+            f_normals = np.asarray(plydata.face_normals, dtype=np.float32)
+            data.normals = torch.from_numpy(np.concatenate([v_normals[:, 0],
+                                                            v_normals[:, 1],
+                                                            v_normals[:, 2],
+                                                            f_normals[:,]], axis=1)).clamp(-1, 1)
+            # mesh (RGB) colors  
             v_rgba = np.asarray(plydata.visual.vertex_colors, dtype=np.float32)[vertex_id].reshape(-1, 3, 4)
             f_rgba = np.asarray(plydata.visual.face_colors, dtype=np.float32)
             data.rgb = torch.from_numpy(np.concatenate([(v_rgba[:, 0, 0:3] / 255.0),
                                                         (v_rgba[:, 1, 0:3] / 255.0),
                                                         (v_rgba[:, 2, 0:3] / 255.0),
                                                         (f_rgba[:, 0:3] / 255.0)], axis=1)).clamp(0, 1)
-            
-            # hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
-            #                              rgb_to_hsv(v_rgba[:, 1, 0:3]), \
-            #                              rgb_to_hsv(v_rgba[:, 2, 0:3]), \
-            #                              rgb_to_hsv(f_rgba[:, 0:3])
-                                        
-            # hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
-            # hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
-            #                                        hsv_j / hsv_max, 
-            #                                        hsv_k / hsv_max, 
-            #                                        hsv_f / hsv_max], axis=1))    
-            # data.hsv = hsv
                 
             if self.pre_filter is not None and not self.pre_filter(data):
                 continue
@@ -257,9 +249,7 @@ class BudjBimLandscapeMeshDataset(Dataset):
         return len(self.data_list) 
     
     def get(self, idx):        
-        data = torch.load(self.data_list[idx], weights_only=False)    
-        data.name = f'{self.data_list[idx].stem}.pt'
-        data.x = torch.cat([data.normals, data.rgb], dim=-1)        
+        data = torch.load(self.data_list[idx], weights_only=False)           
         return data
     
     
@@ -267,7 +257,6 @@ class BudjBimWallMeshDataset(Dataset):
     def __init__(self, 
                  root: Union[Path, str],
                  split: str = 'train', 
-                 load_feature: Optional[str] = 'all',
                  transform = None, 
                  pre_transform = None):
         self.root = Path(root) / 'mesh'       
@@ -280,8 +269,6 @@ class BudjBimWallMeshDataset(Dataset):
         
         assert split in ['train', 'val', 'test']
         self.split = split        
-        
-        self.load_feature = load_feature
          
         self.mesh_list = []
         for area in self.areas[split]:
@@ -302,11 +289,11 @@ class BudjBimWallMeshDataset(Dataset):
     @property
     def get_transform(self) -> dict:
         return {
-                'train': T.Compose([T.NormalizeScale(),
-                                    T.RandomRotate(1, axis=0),
+                'train': T.Compose([T.RandomRotate(1, axis=0),
                                     T.RandomRotate(1, axis=1),
                                     T.RandomRotate(180, axis=2),
-                                    T.RandomJitter(0.001),
+                                    T.RandomJitter(0.005),
+                                    T.NormalizeScale(),
                                     ColorJitter()]),
                 'test': T.Compose([T.NormalizeScale()])
                 }
@@ -324,7 +311,6 @@ class BudjBimWallMeshDataset(Dataset):
             for f in raw_ply_files:
                 plydata = trimesh.load(f, force="mesh")
                 plydata.fix_normals()
-                plydata.invert()
                 
                 face = torch.from_numpy(np.asarray(plydata.faces, dtype=np.int64)).t()
                 face_rgba = torch.from_numpy(np.asarray(plydata.visual.face_colors, dtype=np.float32))
@@ -340,28 +326,21 @@ class BudjBimWallMeshDataset(Dataset):
                 edge_index, _ = remove_self_loops(edge_index)
                 
                 data = Data(face=face, pos=pos, face_rgba=(face_rgba / 255.0).clamp(0, 1), edge_index=edge_index, y=mask) 
-                # mesh normals 
-                data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32)).clamp(-1, 1)  
-                # mesh (RGB) colors
                 vertex_id = data.face.t().numpy().reshape(-1) 
+                # mesh normals 
+                v_normals = np.asarray(plydata.vertex_normals, dtype=np.float32)[vertex_id].reshape(-1, 3, 3)
+                f_normals = np.asarray(plydata.face_normals, dtype=np.float32)
+                data.normals = torch.from_numpy(np.concatenate([v_normals[:, 0],
+                                                                v_normals[:, 1],
+                                                                v_normals[:, 2],
+                                                                f_normals[:,]], axis=1)).clamp(-1, 1)
+                # mesh (RGB) colors  
                 v_rgba = np.asarray(plydata.visual.vertex_colors, dtype=np.float32)[vertex_id].reshape(-1, 3, 4)
                 f_rgba = np.asarray(plydata.visual.face_colors, dtype=np.float32)
                 data.rgb = torch.from_numpy(np.concatenate([(v_rgba[:, 0, 0:3] / 255.0),
                                                             (v_rgba[:, 1, 0:3] / 255.0),
                                                             (v_rgba[:, 2, 0:3] / 255.0),
                                                             (f_rgba[:, 0:3] / 255.0)], axis=1)).clamp(0, 1)
-                
-                # hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
-                #                              rgb_to_hsv(v_rgba[:, 1, 0:3]), \
-                #                              rgb_to_hsv(v_rgba[:, 2, 0:3]), \
-                #                              rgb_to_hsv(f_rgba[:, 0:3])
-                                            
-                # hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
-                # hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
-                #                                        hsv_j / hsv_max, 
-                #                                        hsv_k / hsv_max, 
-                #                                        hsv_f / hsv_max], axis=1))    
-                # data.hsv = hsv
                     
                 if self.pre_filter is not None and not self.pre_filter(data):
                     continue
@@ -375,17 +354,7 @@ class BudjBimWallMeshDataset(Dataset):
         return len(self.data_list) 
     
     def get(self, idx):        
-        data = torch.load(self.data_list[idx], weights_only=False)              
-        
-        if self.load_feature == 'all':
-            data.x = torch.cat([data.normals, data.rgb], dim=-1)
-        elif self.load_feature == 'rgb':
-            data.x = data.rgb
-        elif self.load_feature == 'normals':
-            data.x = data.normals
-        elif self.load_feature is None:
-            data.x = None
-
+        data = torch.load(self.data_list[idx], weights_only=False)         
         return data
 
 
@@ -393,7 +362,6 @@ class SUMDataset(Dataset):
     def __init__(self, 
                  root: Union[Path, str], 
                  split: str = 'train', 
-                 load_feature: Optional[str] = 'all',
                  transform = None, 
                  pre_transform = None):
         self.root = Path(root)       
@@ -407,8 +375,6 @@ class SUMDataset(Dataset):
         
         assert split in ['train', 'validate', 'test']
         self.split = split
-        
-        self.load_feature = load_feature
         
         self.raw_mesh_list = sorted(list((Path(self.raw_dir) / split).glob('*.ply')))
         self.processed_mesh_list = sorted(list((Path(self.processed_dir) / split).glob('*.ply')))
@@ -508,7 +474,6 @@ class SUMDataset(Dataset):
                                           merge_norm=True,
                                           merge_tex=True)
                 plydata.fix_normals()
-                plydata.invert()
                 plydata.export(os.path.join(self.processed_paths[id], f.name))
                 
                 face = torch.from_numpy(np.asarray(plydata.faces, dtype=np.int64)).t()
@@ -522,29 +487,22 @@ class SUMDataset(Dataset):
                 edge_index = coalesce(edge_index, num_nodes=pos.shape[0])
                 edge_index, _ = remove_self_loops(edge_index)
                     
-                data = Data(face=face, pos=pos, face_rgba=(face_rgba / 255.0).clamp(0, 1), edge_index=edge_index, y=mask)                                         
-                # mesh normals
-                data.normals = torch.from_numpy(np.asarray(plydata.face_normals, dtype=np.float32)).clamp(-1, 1)  
-                # mesh (RGB) colors
-                vertex_id = data.face.t().numpy().reshape(-1)
+                data = Data(face=face, pos=pos, face_rgba=(face_rgba / 255.0).clamp(0, 1), edge_index=edge_index, y=mask) 
+                vertex_id = data.face.t().numpy().reshape(-1) 
+                # mesh normals 
+                v_normals = np.asarray(plydata.vertex_normals, dtype=np.float32)[vertex_id].reshape(-1, 3, 3)
+                f_normals = np.asarray(plydata.face_normals, dtype=np.float32)
+                data.normals = torch.from_numpy(np.concatenate([v_normals[:, 0],
+                                                                v_normals[:, 1],
+                                                                v_normals[:, 2],
+                                                                f_normals[:,]], axis=1)).clamp(-1, 1)
+                # mesh (RGB) colors  
                 v_rgba = np.asarray(plydata.visual.vertex_colors, dtype=np.float32)[vertex_id].reshape(-1, 3, 4)
                 f_rgba = np.asarray(plydata.visual.face_colors, dtype=np.float32)
                 data.rgb = torch.from_numpy(np.concatenate([(v_rgba[:, 0, 0:3] / 255.0),
                                                             (v_rgba[:, 1, 0:3] / 255.0),
                                                             (v_rgba[:, 2, 0:3] / 255.0),
-                                                            (f_rgba[:, 0:3] / 255.0)], axis=1)).clamp(0, 1)
-
-                # hsv_i, hsv_j, hsv_k, hsv_f = rgb_to_hsv(v_rgba[:, 0, 0:3]), \
-                #                              rgb_to_hsv(v_rgba[:, 1, 0:3]), \
-                #                              rgb_to_hsv(v_rgba[:, 2, 0:3]), \
-                #                              rgb_to_hsv(f_rgba[:, 0:3])
-                                                
-                # hsv_max = np.array([360.0, 1.0, 255.0], dtype=np.float32)                                                 
-                # hsv = torch.from_numpy(np.concatenate([hsv_i / hsv_max, 
-                #                                        hsv_j / hsv_max, 
-                #                                        hsv_k / hsv_max, 
-                #                                        hsv_f / hsv_max], axis=1))
-                # data.hsv = hsv        
+                                                            (f_rgba[:, 0:3] / 255.0)], axis=1)).clamp(0, 1)      
                 
                 if self.pre_filter is not None and not self.pre_filter(data):
                     continue
@@ -557,11 +515,11 @@ class SUMDataset(Dataset):
     @property
     def get_transform(self) -> dict:
         return {
-                'train': T.Compose([T.NormalizeScale(),
-                                    T.RandomRotate(1, axis=0),
+                'train': T.Compose([T.RandomRotate(1, axis=0),
                                     T.RandomRotate(1, axis=1),
                                     T.RandomRotate(180, axis=2),
-                                    T.RandomJitter(0.001),
+                                    T.RandomJitter(0.005),
+                                    T.NormalizeScale(),
                                     ColorJitter()]),
                 'test': T.Compose([T.NormalizeScale()])
                 }
@@ -570,17 +528,7 @@ class SUMDataset(Dataset):
         return len(self.data_list) 
     
     def get(self, idx):        
-        data = torch.load(self.data_list[idx], weights_only=False)             
-        
-        if self.load_feature == 'all':
-            data.x = torch.cat([data.normals, data.rgb], dim=-1)
-        elif self.load_feature == 'rgb':
-            data.x = data.rgb
-        elif self.load_feature == 'normals':
-            data.x = data.normals
-        elif self.load_feature is None:
-            data.x = None
-            
+        data = torch.load(self.data_list[idx], weights_only=False)           
         return data
     
     
@@ -588,14 +536,13 @@ class BBWPointDataset(BudjBimWallMeshDataset):
     def __init__(self, 
                  root: Union[Path, str],
                  split: str = 'train', 
-                 load_feature: Optional[str] = 'all',
                  first_subsampling_dl = 0.02,
                  config = None,
                  classification = False,
                  class_choice = None,
                  transform = None, 
                  pre_transform = None):
-        super().__init__(root, split, load_feature, transform, pre_transform)
+        super().__init__(root, split, transform, pre_transform)
         self.first_subsampling_dl = first_subsampling_dl
         self.config = config
         self.classification = classification
@@ -618,15 +565,6 @@ class BBWPointDataset(BudjBimWallMeshDataset):
         
         if self.transform:
             data = self.transform(data)
-            
-        if self.load_feature == 'all':
-            point_features = torch.cat([data.normals, data.rgb], dim=-1)
-        elif self.load_feature == 'rgb':
-            point_features = data.rgb
-        elif self.load_feature == 'normals':
-            point_features = data.normals
-        elif self.load_feature is None:
-            point_features = None
             
         point_set = data.pos.detach().cpu().numpy()
         point_features = point_features.detach().cpu().numpy() if point_features != None else point_features
