@@ -39,15 +39,9 @@ if __name__ == '__main__':
         print(yaml.dump(cfg, sort_keys=False, default_flow_style=False))
         print("="*25 + "\n")
         
-        train_set = SUMDataset(root=args.root, 
-                               split='train', 
-                               load_feature=cfg['load_feature'])
-        val_set = SUMDataset(root=args.root, 
-                             split='validate', 
-                             load_feature=cfg['load_feature'])
-        test_set = SUMDataset(root=args.root, 
-                              split='test', 
-                              load_feature=cfg['load_feature'])
+        train_set = SUMDataset(root=args.root, split='train')
+        val_set = SUMDataset(root=args.root, split='validate')
+        test_set = SUMDataset(root=args.root, split='test')
                     
         train_loader = DataLoader(train_set, 
                                   batch_size=cfg['batch'], 

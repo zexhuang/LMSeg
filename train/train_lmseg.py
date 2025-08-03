@@ -38,15 +38,9 @@ if __name__ == '__main__':
         print(yaml.dump(cfg, sort_keys=False, default_flow_style=False))
         print("="*25 + "\n")
         
-        train_set = BudjBimWallMeshDataset(root=args.root, 
-                                           split='train', 
-                                           load_feature=cfg['load_feature'])
-        val_set = BudjBimWallMeshDataset(root=args.root, 
-                                         split='val', 
-                                         load_feature=cfg['load_feature'])
-        test_set = BudjBimWallMeshDataset(root=args.root, 
-                                          split='test', 
-                                          load_feature=cfg['load_feature'])
+        train_set = BudjBimWallMeshDataset(root=args.root, split='train')
+        val_set = BudjBimWallMeshDataset(root=args.root, split='val')
+        test_set = BudjBimWallMeshDataset(root=args.root, split='test')
             
         train_loader = DataLoader(train_set, 
                                   batch_size=cfg['batch'], 
@@ -68,7 +62,8 @@ if __name__ == '__main__':
                          cfg['num_nbrs'],
                          cfg['num_block'],
                          cfg['alpha'], 
-                         cfg['beta'])
+                         cfg['beta'],
+                         cfg['load_feature'])
         
         trainer = Trainer(cfg=cfg) 
         trainer.fit(model, 
