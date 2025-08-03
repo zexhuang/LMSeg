@@ -5,7 +5,7 @@ from torch_geometric.nn import MLP
 from torch_geometric.nn import knn_interpolate, knn
 from torch_geometric.nn.pool.decimation import decimation_indices
 
-from .layer import GAL, GAPL, ResMLP
+from .layer import GAL, GAPL, ResMLP, MeshFeatureEncoder
 from .pool  import RandomPooling, EdgeSimilarityPooling
 
 
@@ -355,8 +355,11 @@ class GANet(nn.Module):
                  num_nbrs: int,
                  num_block: int):
         super().__init__()
+        # Mesh Feature Encoder
+        self.ColorEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
+        self.NormalEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
         # Parametric Encoder
-        self.Enc = GAEncoder(in_channels, hid_channels, 
+        self.Enc = GAEncoder(hid_channels + 3, hid_channels, 
                              num_convs, pool_factors,
                              num_nbrs, num_block)    
         # Parametric Decoder
@@ -379,11 +382,15 @@ class GANet(nn.Module):
         self.Enc.apply(weights_init)
         self.Dec.apply(weights_init)
         self.mlp.apply(weights_init)
+        self.ColorEncoder.apply(weights_init)
+        self.NormalEncoder.apply(weights_init)
         
     def forward(self, data):
-        pos, x, edge_index, batch, ptr = data.pos, data.x, \
-                                         data.edge_index, data.batch, data.ptr
-        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        pos, edge_index, batch, ptr = data.pos, data.edge_index, data.batch, data.ptr
+        
+        x_rgb = self.ColorEncoder(data.rgb.view(-1, 4, 3))
+        x_normals = self.NormalEncoder(data.normals.view(-1, 4, 3))
+        x = torch.cat([x_rgb, x_normals, pos], dim=-1)
 
         pos_down, x_down, batch_down, _ = self.Enc(pos, x, edge_index, batch, ptr) 
         f = self.Dec(pos_down[::-1], x_down[::-1], batch_down[::-1])
@@ -403,8 +410,11 @@ class HGAPNet(nn.Module):
                  alpha: float, 
                  beta: float):
         super().__init__()
+        # Mesh Feature Encoder
+        self.ColorEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
+        self.NormalEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
         # Parametric Encoder
-        self.Enc = HGAPEncoder(in_channels, hid_channels, 
+        self.Enc = HGAPEncoder(hid_channels + 3, hid_channels, 
                                num_convs, pool_factors,
                                num_nbrs, num_block,
                                alpha, beta)    
@@ -428,10 +438,15 @@ class HGAPNet(nn.Module):
         self.Enc.apply(weights_init)
         self.Dec.apply(weights_init)
         self.mlp.apply(weights_init)
+        self.ColorEncoder.apply(weights_init)
+        self.NormalEncoder.apply(weights_init)
         
     def forward(self, data):
-        pos, x, batch, ptr = data.pos, data.x, data.batch, data.ptr
-        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        pos, _, batch, ptr = data.pos, data.edge_index, data.batch, data.ptr
+        
+        x_rgb = self.ColorEncoder(data.rgb.view(-1, 4, 3))
+        x_normals = self.NormalEncoder(data.normals.view(-1, 4, 3))
+        x = torch.cat([x_rgb, x_normals, pos], dim=-1)
 
         pos_down, x_down, batch_down = self.Enc(pos, x, batch, ptr) 
         f = self.Dec(pos_down[::-1], x_down[::-1], batch_down[::-1])
@@ -450,8 +465,11 @@ class LGAPNet(nn.Module):
                  alpha: float, 
                  beta: float):
         super().__init__()
+        # Mesh Feature Encoder
+        self.ColorEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
+        self.NormalEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
         # Parametric Encoder
-        self.Enc = LGAPEncoder(in_channels, hid_channels, 
+        self.Enc = LGAPEncoder(hid_channels + 3, hid_channels, 
                                num_convs, pool_factors,
                                num_block,
                                alpha, beta)    
@@ -475,11 +493,15 @@ class LGAPNet(nn.Module):
         self.Enc.apply(weights_init)
         self.Dec.apply(weights_init)
         self.mlp.apply(weights_init)
+        self.ColorEncoder.apply(weights_init)
+        self.NormalEncoder.apply(weights_init)
         
     def forward(self, data):
-        pos, x, edge_index, batch, ptr = data.pos, data.x, \
-                                         data.edge_index, data.batch, data.ptr
-        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        pos, edge_index, batch, ptr = data.pos, data.edge_index, data.batch, data.ptr
+        
+        x_rgb = self.ColorEncoder(data.rgb.view(-1, 4, 3))
+        x_normals = self.NormalEncoder(data.normals.view(-1, 4, 3))
+        x = torch.cat([x_rgb, x_normals, pos], dim=-1)
 
         pos_down, x_down, batch_down, _ = self.Enc(pos, x, edge_index, batch, ptr) 
         f = self.Dec(pos_down[::-1], x_down[::-1], batch_down[::-1])
@@ -497,21 +519,51 @@ class LMSegNet(nn.Module):
                  num_nbrs: int,
                  num_block: int,
                  alpha: float, 
-                 beta: float):
+                 beta: float,
+                 load_feature: str = 'all'):
         super().__init__()
-        # Parametric Encoder
-        self.Enc = Encoder(in_channels, hid_channels, 
-                           num_convs, pool_factors,
-                           num_nbrs, num_block,
-                           alpha, beta)    
+        
+        if load_feature == 'all':
+            # Mesh Feature Encoder
+            self.ColorEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
+            self.NormalEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
+            # Parametric Encoder
+            self.Enc = Encoder(hid_channels + 3, hid_channels, 
+                               num_convs, pool_factors,
+                               num_nbrs, num_block,
+                               alpha, beta)    
+        elif load_feature == 'rgb':
+            # Mesh Feature Encoder
+            self.ColorEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
+            # Parametric Encoder
+            self.Enc = Encoder(hid_channels // 2 + 3, hid_channels, 
+                               num_convs, pool_factors,
+                               num_nbrs, num_block,
+                               alpha, beta)   
+        elif load_feature == 'normals':
+            # Mesh Feature Encoder
+            self.NormalEncoder = MeshFeatureEncoder(in_dim=in_channels, pos_dim=8, out_dim=hid_channels//2, num_tokens=4)
+            # Parametric Encoder
+            self.Enc = Encoder(hid_channels // 2 + 3, hid_channels, 
+                               num_convs, pool_factors,
+                               num_nbrs, num_block,
+                               alpha, beta)   
+        elif load_feature == None:
+            # Parametric Encoder
+            self.Enc = Encoder(3, hid_channels, 
+                               num_convs, pool_factors,
+                               num_nbrs, num_block,
+                               alpha, beta)   
         # Parametric Decoder
         self.Dec = Decoder(hid_channels, num_convs)   
         # MLP Classifier
         self.mlp = MLP([hid_channels, 128, 128, out_channels], dropout=0.5)
         
-        self.init_weights()
+        self.init_weights(load_feature)
         
-    def init_weights(self):
+        self.load_feature = load_feature
+        
+    def init_weights(self, load_feature: str = 'all'):
         def weights_init(m):
             if isinstance(m, (nn.Linear, nn.Conv1d, nn.Conv2d)):
                 nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
@@ -524,11 +576,30 @@ class LMSegNet(nn.Module):
         self.Enc.apply(weights_init)
         self.Dec.apply(weights_init)
         self.mlp.apply(weights_init)
+        
+        if load_feature == 'all':
+            self.ColorEncoder.apply(weights_init)
+            self.NormalEncoder.apply(weights_init)
+        elif load_feature == 'rgb':
+            self.ColorEncoder.apply(weights_init)
+        elif load_feature == 'normals':
+            self.NormalEncoder.apply(weights_init)
 
     def forward(self, data):
-        pos, x, edge_index, batch, ptr = data.pos, data.x, \
-                                         data.edge_index, data.batch, data.ptr
-        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        pos, edge_index, batch, ptr = data.pos, data.edge_index, data.batch, data.ptr
+        
+        if self.load_feature == 'all':
+            x_rgb = self.ColorEncoder(data.rgb.view(-1, 4, 3))
+            x_normals = self.NormalEncoder(data.normals.view(-1, 4, 3))
+            x = torch.cat([x_rgb, x_normals, pos], dim=-1)
+        elif self.load_feature == 'rgb':
+            x_rgb = self.ColorEncoder(data.rgb.view(-1, 4, 3))
+            x = torch.cat([x_rgb, pos], dim=-1)
+        elif self.load_feature == 'normals':
+            x_normals = self.NormalEncoder(data.normals.view(-1, 4, 3))
+            x = torch.cat([x_normals, pos], dim=-1)
+        elif self.load_feature == None:
+            x = pos.detach().clone()
 
         pos_down, x_down, batch_down, _ = self.Enc(pos, x, edge_index, batch, ptr) 
         f = self.Dec(pos_down[::-1], x_down[::-1], batch_down[::-1])
