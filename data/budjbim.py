@@ -204,7 +204,7 @@ def from_copc(
     bounds: tuple, 
     classification: Optional[List[int]] = None, 
     ground_filt: bool = True,
-    csf_res: float = 0.03,
+    csf_res: float = 0.05,
     rigidness: int = 1,
     slope_smooth: bool = True
 ):
@@ -265,7 +265,7 @@ def copc_to_poly_by_area(
     classification: Optional[List[int]] = None,
     ground_filt: bool = True,
     csf_res: float = 0.05,
-    rigidness: int = 2,
+    rigidness: int = 1,
     slope_smooth: bool = True,
     agg: float = 0.0,
     output: Union[str, None] = None,
@@ -364,8 +364,8 @@ def copc_to_poly(
     grid_file: str,
     classification: Optional[List[int]] = None,
     ground_filt: bool = True,
-    csf_res: float = 0.04,
-    rigidness: int = 2,
+    csf_res: float = 0.05,
+    rigidness: int = 1,
     slope_smooth: bool = True,
     agg: float = 0.0,
     output: Union[str, None] = None
@@ -438,7 +438,7 @@ if __name__ == '__main__':
                         help='ground point filtration with CSF')
     parser.add_argument('--csf_res', type=float, default=0.05, metavar='N',
                         help='cloth resolution: the grid size of cloth which is use to cover the terrain (default: 0.05)')
-    parser.add_argument('--rigidness', type=int, default=2, metavar='N',
+    parser.add_argument('--rigidness', type=int, default=1, metavar='N',
                         help='rigidness of scenes of CSF')
     parser.add_argument('--slope_smooth', type=bool,  default=True,
                         help='indicate whether to enable slope smoothing in CSF, defaults to True.')
