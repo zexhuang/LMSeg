@@ -3,12 +3,9 @@ import argparse
 
 import numpy as np
 import geopandas as gpd
+import pyvista as pv
 
-import startinpy
-import pymeshlab as pml
-import fast_simplification as sim
-
-from typing import Optional, List, Union, Dict
+from typing import Optional, List, Union
 from shapely.geometry import Polygon
 from tqdm import tqdm
 from pathlib import Path
@@ -42,7 +39,7 @@ def split_areas(url: str,
                                window_bounds[3] + j * -area_h)
                 areas.append(box(*area_bounds))            
         
-        gdf = gpd.GeoDataFrame(geometry=areas, crs=crs.data['init'])
+        gdf = gpd.GeoDataFrame(geometry=areas, crs=crs.to_string())
         return gdf
 
 
@@ -84,7 +81,7 @@ def get_grid_df(url: str,
                     
                     if (pos / (neg + pos)) > thred: grids.append(box(*temp_bounds))          
                         
-    gdf = gpd.GeoDataFrame(geometry=grids, crs=crs.data['init'])
+    gdf = gpd.GeoDataFrame(geometry=grids, crs=crs.to_string())
     return gdf
 
 
@@ -105,28 +102,50 @@ def save_points(fname: Union[str, Path],
     pcd.export(fname)
     
 
-def save_mesh(fname: Union[str, Path], 
-              vertex: np.ndarray, 
-              face: np.ndarray, 
-              v_normal: Optional[np.ndarray] = None, 
-              f_normal: Optional[np.ndarray] = None,
-              v_rgb:  Optional[np.ndarray] = None, 
-              v_mask: Optional[Dict[str, np.ndarray]] = None,
-              f_rgb:  Optional[np.ndarray] = None, 
-              f_mask: Optional[Dict[str, np.ndarray]] = None):
-    
-    f_mask = {'mask': f_mask} if f_mask is not None else f_mask
-    v_mask = {'mask': v_mask} if v_mask is not None else v_mask
-    
+def save_mesh(
+    fname: Union[str, Path], 
+    vertex: np.ndarray, 
+    face: np.ndarray, 
+    v_normal: Optional[np.ndarray] = None, 
+    f_normal: Optional[np.ndarray] = None,
+    v_rgb: Optional[np.ndarray] = None, 
+    v_mask: Optional[np.ndarray] = None,
+    f_rgb: Optional[np.ndarray] = None, 
+    f_mask: Optional[np.ndarray] = None,
+    agg: int = 0
+):
+    # Wrap masks into dict with key 'mask' if they exist
+    vertex_attributes = {'mask': v_mask} if v_mask is not None else None
+    face_attributes = {'mask': f_mask} if f_mask is not None else None
+
     import trimesh
-    mesh = trimesh.Trimesh(vertices=vertex, faces=face, 
-                           face_normals=f_normal, vertex_normals=v_normal,
-                           face_colors=f_rgb, vertex_colors=v_rgb,
-                           face_attributes=f_mask, 
-                           vertex_attributes=v_mask,
-                           process=True, 
-                           validate=True,
-                           merge_tex=True)
+    # Create Trimesh object
+    mesh = trimesh.Trimesh(
+        vertices=vertex,
+        faces=face,
+        vertex_normals=v_normal,
+        face_normals=f_normal,
+        vertex_colors=v_rgb,
+        face_colors=f_rgb,
+        vertex_attributes=vertex_attributes,
+        face_attributes=face_attributes,
+        process=True,
+        validate=True,
+        merge_tex=True
+    )
+
+    # Clean up mesh
+    mesh.update_faces(mesh.unique_faces())
+    mesh.remove_degenerate_faces()
+    mesh.remove_unreferenced_vertices()
+    mesh.merge_vertices()
+    mesh.fill_holes()
+    mesh.fix_normals()
+
+    # Simplify mesh (in-place)
+    mesh.simplify_quadric_decimation(percent=0.01, aggression=agg)
+
+    # Export mesh to file
     mesh.export(fname)
     
     
@@ -184,121 +203,105 @@ def from_cog(url: str, bounds: tuple, points: np.ndarray):
     return cog_attr
 
 
-def clean_mesh(vertex:np.ndarray, face: np.ndarray):        
-    ms = pml.MeshSet()    
-    ms.add_mesh(pml.Mesh(vertex_matrix=vertex, face_matrix=face))
-    
-    ms.meshing_snap_mismatched_borders()
-    
-    ms.meshing_remove_duplicate_faces()
-    ms.meshing_remove_duplicate_vertices()
-    
-    ms.meshing_remove_null_faces()
-    ms.meshing_remove_folded_faces()
-    
-    ms.meshing_remove_unreferenced_vertices()
-    
-    ms.meshing_repair_non_manifold_edges(method=0)
-    ms.meshing_repair_non_manifold_vertices(vertdispratio=0)
-    
-    ms.compute_normal_per_vertex(weightmode=2)
-    ms.compute_normal_per_face()
-    
-    v, f = ms.current_mesh().vertex_matrix(), \
-           ms.current_mesh().face_matrix()
-    vn, fn = ms.current_mesh().vertex_normal_matrix(), \
-             ms.current_mesh().face_normal_matrix()
-    return v, f, vn, fn
-
-
-def copc_to_poly_by_area(copc_url: str, 
-                         mask_url: str,
-                         rgb_url: str,
-                         area_file: str,
-                         grid_size: int,
-                         grid_stride: List[int],
-                         classification: Optional[List[int]] = None,
-                         ground_filt: bool = True,
-                         csf_res: float = 0.03,
-                         rigidness: int = 1,
-                         slope_smooth: bool = True,
-                         agg: float = 0.0,
-                         output: Union[str, None] = None):
-    
-    data_dir = Path(__file__).parent / output if output else Path(__file__).parent / 'BudjBimWall' 
+def copc_to_poly_by_area(
+    copc_url: str,
+    mask_url: str,
+    rgb_url: str,
+    area_file: str,
+    grid_size: int,
+    grid_stride: List[int],
+    classification: Optional[List[int]] = None,
+    ground_filt: bool = True,
+    csf_res: float = 0.03,
+    rigidness: int = 1,
+    slope_smooth: bool = True,
+    agg: float = 0.0,
+    output: Union[str, None] = None,
+):
+    # Setup output directory
+    data_dir = Path(__file__).parent / output if output else Path(__file__).parent / "BudjBimWall"
     data_dir.mkdir(parents=True, exist_ok=True)
-    
-    if os.path.exists(data_dir / area_file):
-        areas = gpd.read_file(data_dir / area_file)
+
+    # Load or generate areas GeoDataFrame
+    area_path = data_dir / area_file
+    if os.path.exists(area_path):
+        areas = gpd.read_file(area_path)
     else:
         areas = split_areas(mask_url)
-        areas.to_file(data_dir / 'areas.gpkg', driver="GPKG") 
-        
-    for area_id, area in areas.iterrows():        
-        mesh_fp = data_dir / 'mesh' / f'area{area_id + 1}'
+        areas.to_file(data_dir / "areas.gpkg", driver="GPKG")
+
+    # Process each area
+    for area_id, area in areas.iterrows():
+        mesh_fp = data_dir / "mesh" / f"area{area_id + 1}"
         mesh_fp.mkdir(parents=True, exist_ok=True)
-        
-        pcd_fp = data_dir / 'pcd' / f'area{area_id + 1}'
+
+        pcd_fp = data_dir / "pcd" / f"area{area_id + 1}"
         pcd_fp.mkdir(parents=True, exist_ok=True)
-        
+
         grid_df = get_grid_df(mask_url, grid_size, grid_stride, area.geometry)
-        grids = [row['geometry'] for _, row in grid_df.iterrows()]
-        
-        for _, grid in enumerate(tqdm(grids)):          
-            fname = f"e{str(int(grid.centroid.x))}_n{str(int(grid.centroid.y))}_{grid_df.crs}.ply".replace(":", "")
-            
-            points, rgb, intensity, ground_id, _ = from_copc(copc_url, grid.bounds, classification, ground_filt, csf_res, rigidness, slope_smooth)
-                    
-            bounds = (points[:,0].min(), points[:,1].min(), 
-                      points[:,0].max(), points[:,1].max())                        
-            
-            mask = from_cog(mask_url, bounds, points[:, :2])
-            mask = mask.astype(np.float64).reshape(-1)
-            
+        grids = [row["geometry"] for _, row in grid_df.iterrows()]
+
+        # Iterate over grids within area
+        for _, grid in enumerate(tqdm(grids)):
+            fname = f"e{int(grid.centroid.x)}_n{int(grid.centroid.y)}_{grid_df.crs}.ply".replace(":", "")
+
+            points, rgb, intensity, ground_id, _ = from_copc(
+                copc_url, grid.bounds, classification, ground_filt, csf_res, rigidness, slope_smooth
+            )
+
+            if points.size == 0: 
+                continue      # Ad-hoc fix to skip current iteration for empty point clouds returned  
+
+            bounds = (points[:, 0].min(), points[:, 1].min(), points[:, 0].max(), points[:, 1].max())
+            mask = from_cog(mask_url, bounds, points[:, :2]).astype(np.float64).reshape(-1)
             save_points(pcd_fp / fname, points, rgb, intensity, mask)
-            
-            dt = startinpy.DT()
-            dt.insert(points[ground_id])
-            v, f = dt.points, dt.triangles
-            v, f = sim.simplify(v.astype(np.float32), f.astype(np.float32), target_reduction=0.99, agg=agg)
-            v, f, vn, fn = clean_mesh(v, f)
-            
-            bounds = (v[:,0].min(), v[:,1].min(), 
-                      v[:,0].max(), v[:,1].max())
+
+            ground_points = points[ground_id].copy()
+            ground_points[:, 2] = 0  # Flatten Z for triangulation
+            pcd = pv.PolyData(ground_points)
+
+            # Generate surface mesh via 2D Delaunay triangulation
+            surface = pcd.delaunay_2d()
+            surface.points[:, 2] = points[ground_id][:, 2]  # Restore original Z values
+            surface = surface.clean()
+            surface.compute_normals(point_normals=True, cell_normals=True, inplace=True)
+
+            # Extract vertices, faces, normals, and colors
+            v, f = surface.points, surface.faces.reshape(-1, 4)[:, 1:]
+            vn, fn = surface.point_data["Normals"], surface.cell_data["Normals"]
+            v_rgb = rgb[ground_id]
+            f_rgb = v_rgb[f].mean(axis=1).astype(np.uint8)
+            fv = v[f].mean(axis=1)
+
+            # Extract vertex mask from COG
+            v_bounds = (v[:, 0].min(), v[:, 1].min(), v[:, 0].max(), v[:, 1].max())
             try:
-                v_rgb = from_cog(rgb_url, bounds, v[:, :2])
-                v_rgb = v_rgb.astype(np.uint8)
+                v_mask = from_cog(mask_url, v_bounds, v[:, :2]).astype(np.float64).reshape(-1)
             except Exception as e:
-                print(f"Unexpected error {e}")
+                print(f"Unexpected error extracting vertex mask: {e}")
                 continue
-            
+
+            # Extract face mask from COG
+            f_bounds = (fv[:,0].min(), fv[:,1].min(), fv[:,0].max(), fv[:,1].max())
             try:
-                v_mask = from_cog(mask_url, bounds, v[:, :2])
-                v_mask = v_mask.astype(np.float64).reshape(-1)
+                f_mask = from_cog(mask_url, f_bounds, fv[:, :2]).astype(np.float64).reshape(-1)
             except Exception as e:
-                print(f"Unexpected error {e}")
+                print(f"Unexpected error extracting face mask: {e}")
                 continue
-            
-            import trimesh
-            fv = trimesh.Trimesh(v, f).triangles_center
-            
-            bounds = (fv[:,0].min(), fv[:,1].min(), 
-                      fv[:,0].max(), fv[:,1].max())
-            try:
-                f_rgb = from_cog(rgb_url, bounds, fv[:, :2])
-                f_rgb = f_rgb.astype(np.uint8)
-            except Exception as e:
-                print(f"Unexpected error {e}")
-                continue
-            
-            try:
-                f_mask = from_cog(mask_url, bounds, fv[:, :2])
-                f_mask = f_mask.astype(np.float64).reshape(-1)
-            except Exception as e:
-                print(f"Unexpected error {e}")
-                continue
-            
-            save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, v_mask=v_mask, f_rgb=f_rgb, f_mask=f_mask)
+
+            # Save mesh with all attributes
+            save_mesh(
+                mesh_fp / fname,
+                v,
+                f,
+                v_normal=vn,
+                f_normal=fn,
+                v_rgb=v_rgb,
+                v_mask=v_mask,
+                f_rgb=f_rgb,
+                f_mask=f_mask,
+                agg=agg,
+            )
             
             
 def copc_to_poly(copc_url: str, 
@@ -335,40 +338,21 @@ def copc_to_poly(copc_url: str,
         if points.size == 0: 
             continue      # Ad-hoc fix to skip current iteration for empty point clouds returned                
         
-        dt = startinpy.DT()
-        dt.insert(points[ground_id])
-        v, f = dt.points, dt.triangles
-        if v.shape[0] == 0 or f.shape[0] == 0: 
-            continue     # Ad-hoc fix to skip current iteration for empty mesh faces and vertices  
-        
-        v, f = sim.simplify(v.astype(np.float32), f.astype(np.float32), target_reduction=0.99, agg=agg)        
-        if v.shape[0] == 0 or f.shape[0] == 0: 
-            continue     # Ad-hoc fix to skip current iteration for empty simplified mesh faces and vertices      
-        
-        v, f, vn, fn = clean_mesh(v, f)
-        if v.shape[0] == 0 or f.shape[0] == 0: 
-            continue     # Ad-hoc fix to skip current iteration for empty cleaned mesh faces and vertices   
-        
-        bounds = (v[:,0].min(), v[:,1].min(), 
-                  v[:,0].max(), v[:,1].max())
-        try:
-            v_rgb = from_cog(rgb_url, bounds, v[:, :2])
-            v_rgb = v_rgb.astype(np.uint8)
-        except Exception as e:
-            print(f"Unexpected error {e}")
-            continue
-        
-        import trimesh
-        fv = trimesh.Trimesh(v, f).triangles_center
-        
-        bounds = (fv[:,0].min(), fv[:,1].min(), 
-                  fv[:,0].max(), fv[:,1].max())
-        try:
-            f_rgb = from_cog(rgb_url, bounds, fv[:, :2])
-            f_rgb = f_rgb.astype(np.uint8)
-        except Exception as e:
-            print(f"Unexpected error {e}")
-            continue
+        ground_points = points[ground_id].copy()
+        ground_points[:, 2] = 0  # Flatten Z for triangulation
+        pcd = pv.PolyData(ground_points)
+
+        # Generate surface mesh via 2D Delaunay triangulation
+        surface = pcd.delaunay_2d()
+        surface.points[:, 2] = points[ground_id][:, 2]  # Restore original Z values
+        surface = surface.clean()
+        surface.compute_normals(point_normals=True, cell_normals=True, inplace=True)
+
+        # Extract vertices, faces, normals, and colors
+        v, f = surface.points, surface.faces.reshape(-1, 4)[:, 1:]
+        vn, fn = surface.point_data["Normals"], surface.cell_data["Normals"]
+        v_rgb = rgb[ground_id]
+        f_rgb = v_rgb[f].mean(axis=1).astype(np.uint8)
         
         save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, f_rgb=f_rgb)
 
@@ -386,9 +370,9 @@ if __name__ == '__main__':
     parser.add_argument('--rgb_url', type=str,  metavar='N',
                         default='https://objects.storage.unimelb.edu.au/4320_budjbimdata/COGs/RGB_10cm.tif',
                         help='rgb image url')
-    parser.add_argument('--area_file', type=str, default=None, metavar='N', 
+    parser.add_argument('--area_file', type=str, default='areas.gkpg', metavar='N', 
                         help='area splits of BudjBim stone wall')
-    parser.add_argument('--size', type=int, default=20, metavar='N', 
+    parser.add_argument('--size', type=int, default=40, metavar='N', 
                         help='size of grid from top-left corner (default: 20 (meter))')
     parser.add_argument('--stride', type=list[int], default=[20], metavar='N', 
                         help='list of distances defined for grids to move from top to bottm, left to right (default: [20])')
@@ -406,7 +390,7 @@ if __name__ == '__main__':
                         help='indicate whether to enable slope smoothing in CSF, defaults to True.')
     parser.add_argument('--agg', type=float, default=0, metavar='N',
                         help='controls how aggressively to decimate the mesh.')
-    parser.add_argument('--output', type=str, default='BudjBimWall', metavar='N',
+    parser.add_argument('--output', type=str, default='BBW/BudjBimWall', metavar='N',
                         help='output folder')
     args = parser.parse_args()
     
