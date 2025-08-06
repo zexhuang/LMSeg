@@ -40,6 +40,11 @@ dependencies:
   - tensorboard
   - pip
   - pip:
+      - datasets
+      - transformers
+      - tokenizers
+      - laspy
+      - lazrs
       - startinpy
       - fast-simplification
       - "git+https://github.com/facebookresearch/pytorch3d.git"

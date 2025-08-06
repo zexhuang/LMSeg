@@ -373,7 +373,7 @@ if __name__ == '__main__':
     parser.add_argument('--area_file', type=str, default='areas.gkpg', metavar='N', 
                         help='area splits of BudjBim stone wall')
     parser.add_argument('--size', type=int, default=40, metavar='N', 
-                        help='size of grid from top-left corner (default: 20 (meter))')
+                        help='size of grid from top-left corner (default: 40 (meter))')
     parser.add_argument('--stride', type=list[int], default=[20], metavar='N', 
                         help='list of distances defined for grids to move from top to bottm, left to right (default: [20])')
     parser.add_argument('--grid_file', type=str, default=None, metavar='N', 
