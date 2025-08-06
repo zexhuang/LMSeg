@@ -11,9 +11,11 @@ from tqdm import tqdm
 from pathlib import Path
 
 
-def split_areas(url: str, 
-                w_factor: int = 2, 
-                h_factor: int = 3):
+def split_areas(
+    url: str, 
+    w_factor: int = 2, 
+    h_factor: int = 3
+):
     from shapely.geometry import box
     from rio_tiler.io import Reader
     
@@ -43,11 +45,13 @@ def split_areas(url: str,
         return gdf
 
 
-def get_grid_df(url: str, 
-                size: int, 
-                stride: List[int],
-                area: Polygon = None,
-                thred: float = 0.02):
+def get_grid_df(
+    url: str, 
+    size: int, 
+    stride: List[int],
+    area: Polygon = None,
+    thred: float = 0.02
+):
     from shapely.geometry import box
     from rio_tiler.io import Reader
     
@@ -85,11 +89,13 @@ def get_grid_df(url: str,
     return gdf
 
 
-def save_points(fname: Union[str, Path],
-                points: np.ndarray, 
-                rgb: Optional[np.ndarray] = None, 
-                intensity: Optional[np.ndarray] = None,
-                mask: Optional[np.ndarray] = None):
+def save_points(
+    fname: Union[str, Path],
+    points: np.ndarray, 
+    rgb: Optional[np.ndarray] = None, 
+    intensity: Optional[np.ndarray] = None,
+    mask: Optional[np.ndarray] = None
+):
     import trimesh
     
     pcd = trimesh.Trimesh(vertices=points, faces=None, 
@@ -149,13 +155,15 @@ def save_mesh(
     mesh.export(fname)
     
     
-def from_copc(url: str, 
-              bounds: tuple, 
-              classification: Optional[List[int]] = None, 
-              ground_filt: bool = True,
-              csf_res: float = 0.03,
-              rigidness: int = 1,
-              slope_smooth: bool = True):
+def from_copc(
+    url: str, 
+    bounds: tuple, 
+    classification: Optional[List[int]] = None, 
+    ground_filt: bool = True,
+    csf_res: float = 0.03,
+    rigidness: int = 1,
+    slope_smooth: bool = True
+):
     from laspy import Bounds, CopcReader
     with CopcReader.open(url) as copc:
         query = copc.query(Bounds(mins=bounds[:2], maxs=bounds[2:]))     
@@ -212,8 +220,8 @@ def copc_to_poly_by_area(
     grid_stride: List[int],
     classification: Optional[List[int]] = None,
     ground_filt: bool = True,
-    csf_res: float = 0.03,
-    rigidness: int = 1,
+    csf_res: float = 0.05,
+    rigidness: int = 2,
     slope_smooth: bool = True,
     agg: float = 0.0,
     output: Union[str, None] = None,
@@ -304,18 +312,20 @@ def copc_to_poly_by_area(
             )
             
             
-def copc_to_poly(copc_url: str, 
-                 rgb_url: str,
-                 grid_size: int,
-                 grid_stride: List[int],
-                 grid_file: str,
-                 classification: Optional[List[int]] = None,
-                 ground_filt: bool = True,
-                 csf_res: float = 0.03,
-                 rigidness: int = 1,
-                 slope_smooth: bool = True,
-                 agg: float = 0.0,
-                 output: Union[str, None] = None):
+def copc_to_poly(
+    copc_url: str, 
+    rgb_url: str,
+    grid_size: int,
+    grid_stride: List[int],
+    grid_file: str,
+    classification: Optional[List[int]] = None,
+    ground_filt: bool = True,
+    csf_res: float = 0.04,
+    rigidness: int = 2,
+    slope_smooth: bool = True,
+    agg: float = 0.0,
+    output: Union[str, None] = None
+):
     
     data_dir = Path(__file__).parent / output if output else Path(__file__).parent / 'BudjBimLandscape' 
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -354,7 +364,7 @@ def copc_to_poly(copc_url: str,
         v_rgb = rgb[ground_id]
         f_rgb = v_rgb[f].mean(axis=1).astype(np.uint8)
         
-        save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, f_rgb=f_rgb)
+        save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, f_rgb=f_rgb, agg=agg)
 
 
 if __name__ == '__main__':
@@ -382,9 +392,9 @@ if __name__ == '__main__':
                         help='point cloud query by ALS classification')
     parser.add_argument('--ground_filt', type=bool,  default=True,
                         help='ground point filtration with CSF')
-    parser.add_argument('--csf_res', type=float, default=0.03, metavar='N',
-                        help='cloth resolution: the grid size of cloth which is use to cover the terrain (default: 0.03)')
-    parser.add_argument('--rigidness', type=int, default=1, metavar='N',
+    parser.add_argument('--csf_res', type=float, default=0.05, metavar='N',
+                        help='cloth resolution: the grid size of cloth which is use to cover the terrain (default: 0.05)')
+    parser.add_argument('--rigidness', type=int, default=2, metavar='N',
                         help='rigidness of scenes of CSF')
     parser.add_argument('--slope_smooth', type=bool,  default=True,
                         help='indicate whether to enable slope smoothing in CSF, defaults to True.')
@@ -395,29 +405,33 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     if args.dataset == "BudjBimWall":
-        copc_to_poly_by_area(copc_url = args.copc_url, 
-                             mask_url = args.mask_url, 
-                             rgb_url = args.rgb_url,
-                             area_file= args.area_file,
-                             grid_size = args.size,
-                             grid_stride = args.stride,
-                             classification = args.classification, 
-                             ground_filt = args.ground_filt,
-                             csf_res = args.csf_res,
-                             rigidness = args.rigidness,
-                             slope_smooth = args.slope_smooth,
-                             agg=args.agg,
-                             output = args.output)
+        copc_to_poly_by_area(
+            copc_url = args.copc_url, 
+            mask_url = args.mask_url, 
+            rgb_url = args.rgb_url,
+            area_file= args.area_file,
+            grid_size = args.size,
+            grid_stride = args.stride,
+            classification = args.classification, 
+            ground_filt = args.ground_filt,
+            csf_res = args.csf_res,
+            rigidness = args.rigidness,
+            slope_smooth = args.slope_smooth,
+            agg=args.agg,
+            output = args.output
+        )
     elif args.dataset == "BudjBimLandscape":
-        copc_to_poly(copc_url = args.copc_url, 
-                     rgb_url = args.rgb_url,
-                     grid_size = args.size,
-                     grid_stride = args.stride,
-                     grid_file= args.grid_file,
-                     classification = args.classification, 
-                     ground_filt = args.ground_filt,
-                     csf_res = args.csf_res,
-                     rigidness = args.rigidness,
-                     slope_smooth = args.slope_smooth,
-                     agg=args.agg,
-                     output = args.output)
+        copc_to_poly(
+            copc_url = args.copc_url, 
+            rgb_url = args.rgb_url,
+            grid_size = args.size,
+            grid_stride = args.stride,
+            grid_file= args.grid_file,
+            classification = args.classification, 
+            ground_filt = args.ground_filt,
+            csf_res = args.csf_res,
+            rigidness = args.rigidness,
+            slope_smooth = args.slope_smooth,
+            agg=args.agg,
+            output = args.output
+        )
