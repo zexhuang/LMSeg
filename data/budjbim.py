@@ -220,7 +220,6 @@ def from_copc(
             query = query[label_mask]  
             
         if ground_filt:
-            from csf import csf
             xyz = np.vstack((query.x, query.y, query.z)).transpose()
             non_ground_id, ground_id = csf(points=xyz, cloth_resolution=csf_res, rigidness=rigidness, slope_smooth=slope_smooth)
         else:
