@@ -1,6 +1,5 @@
 # dataset
 dataset: sum
-load_feature: all
 batch: 1
 workers: 8
 
@@ -13,9 +12,8 @@ device: cuda
 
 # model
 model: GA
-num_convs: 4
+num_convs: 3
 pool_factors: 
-  - 3
   - 3
   - 3
   - 3
@@ -24,8 +22,8 @@ num_block: 1
 alpha: 0.001
 beta: 0.01
 
-in_channels: 18
-hid_channels: 36
+in_channels: 3
+hid_channels: 72
 out_channels: 7
 
 # save
