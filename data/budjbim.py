@@ -337,17 +337,15 @@ def copc_to_poly_by_area(
             import trimesh
             fv = trimesh.Trimesh(v, f).triangles_center
             
-            f_bounds = (fv[:,0].min(), fv[:,1].min(), 
-                        fv[:,0].max(), fv[:,1].max())
             try:
-                f_rgb = from_cog(rgb_url, f_bounds, fv[:, :2])
+                f_rgb = from_cog(rgb_url, v_bounds, fv[:, :2])    # use point bounds to ensure correct spatial extent
                 f_rgb = f_rgb.astype(np.uint8)
             except Exception as e:
                 print(f"Unexpected error {e}")
                 continue
             
             try:
-                f_mask = from_cog(mask_url, f_bounds, fv[:, :2])
+                f_mask = from_cog(mask_url, v_bounds, fv[:, :2])  # use point bounds to ensure correct spatial extent
                 f_mask = f_mask.astype(np.float64).reshape(-1)
             except Exception as e:
                 print(f"Unexpected error {e}")
@@ -418,11 +416,8 @@ def copc_to_poly(
 
         import trimesh
         fv = trimesh.Trimesh(v, f).triangles_center
-            
-        f_bounds = (fv[:,0].min(), fv[:,1].min(), 
-                    fv[:,0].max(), fv[:,1].max())
         try:
-            f_rgb = from_cog(rgb_url, f_bounds, fv[:, :2])
+            f_rgb = from_cog(rgb_url, v_bounds, fv[:, :2])
             f_rgb = f_rgb.astype(np.uint8)
         except Exception as e:
             print(f"Unexpected error {e}")
