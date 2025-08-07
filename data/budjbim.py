@@ -372,6 +372,9 @@ def copc_to_poly(
         surface = sim.simplify_mesh(surface, target_reduction=0.99, agg=agg)
         surface = surface.clean()
         surface.compute_normals(inplace=True)
+        
+        v, f = surface.points, surface.faces.reshape(-1, 4)[:, 1:]
+        vn, fn = surface.point_data['Normals'], surface.cell_data['Normals']
 
         mesh = trimesh.Trimesh(v, f, face_normals=fn, vertex_normals=vn, process=True, validate=True, merge_tex=True)
         # mesh cleanup
