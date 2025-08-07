@@ -226,7 +226,7 @@ def from_copc(
             non_ground_id, ground_id = None, None
             
     xyz = np.vstack((query.x, query.y, query.z)).astype(np.float32).transpose()
-    rgb = np.vstack((query.red, query.green, query.blue)).astype(np.uint8).transpose() // 256  # 16-bit to 8-bit RGB
+    rgb = np.vstack((query.red, query.green, query.blue)).astype(np.uint).transpose() // 256  # 16-bit to 8-bit RGB
     intensity = query.intensity
     return xyz, rgb, intensity, ground_id, non_ground_id
 
