@@ -226,7 +226,7 @@ def from_copc(
             non_ground_id, ground_id = None, None
             
     xyz = np.vstack((query.x, query.y, query.z)).astype(np.float32).transpose()
-    rgb = np.vstack((query.red, query.green, query.blue)).astype(np.uint).transpose() // 256
+    rgb = np.vstack((query.red, query.green, query.blue)).astype(np.uint8).transpose() // 256  # 16-bit to 8-bit RGB
     intensity = query.intensity
     return xyz, rgb, intensity, ground_id, non_ground_id
 
@@ -435,7 +435,7 @@ if __name__ == '__main__':
                         help='point cloud query by ALS classification')
     parser.add_argument('--ground_filt', type=bool,  default=True,
                         help='ground point filtration with CSF')
-    parser.add_argument('--csf_res', type=float, default=0.05, metavar='N',
+    parser.add_argument('--csf_res', type=float, default=0.1, metavar='N',
                         help='cloth resolution: the grid size of cloth which is use to cover the terrain (default: 0.05)')
     parser.add_argument('--rigidness', type=int, default=1, metavar='N',
                         help='rigidness of scenes of CSF')
