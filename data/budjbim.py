@@ -1,11 +1,12 @@
 import os
 import argparse
+import trimesh
+import CSF
 
 import numpy as np
 import geopandas as gpd
 import pyvista as pv
 import fast_simplification as sim
-import CSF
 
 from typing import Optional, List, Union, Tuple
 from shapely.geometry import Polygon
@@ -152,49 +153,6 @@ def save_points(
                           merge_tex=True)
     pcd.export(fname)
     
-
-def save_mesh(
-    fname: Union[str, Path], 
-    vertex: np.ndarray, 
-    face: np.ndarray, 
-    v_normal: Optional[np.ndarray] = None, 
-    f_normal: Optional[np.ndarray] = None,
-    v_rgb: Optional[np.ndarray] = None, 
-    v_mask: Optional[np.ndarray] = None,
-    f_rgb: Optional[np.ndarray] = None, 
-    f_mask: Optional[np.ndarray] = None,
-):
-    # Wrap masks into dict with key 'mask' if they exist
-    vertex_attributes = {'mask': v_mask} if v_mask is not None else None
-    face_attributes = {'mask': f_mask} if f_mask is not None else None
-
-    import trimesh
-    # Create Trimesh object
-    mesh = trimesh.Trimesh(
-        vertices=vertex,
-        faces=face,
-        vertex_normals=v_normal,
-        face_normals=f_normal,
-        vertex_colors=v_rgb,
-        face_colors=f_rgb,
-        vertex_attributes=vertex_attributes,
-        face_attributes=face_attributes,
-        process=True,
-        validate=True,
-        merge_tex=True
-    )
-
-    # Clean up mesh
-    mesh.update_faces(mesh.unique_faces())
-    mesh.remove_degenerate_faces()
-    mesh.remove_unreferenced_vertices()
-    mesh.merge_vertices()
-    mesh.fill_holes()
-    mesh.fix_normals()
-
-    # Export mesh to file
-    mesh.export(fname)
-    
     
 def from_copc(
     url: str, 
@@ -266,11 +224,11 @@ def copc_to_poly_by_area(
     agg: float = 0.0,
     output: Union[str, None] = None,
 ):
-    # Setup output directory
+    # setup output directory
     data_dir = Path(__file__).parent / output if output else Path(__file__).parent / "BudjBimWall"
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load or generate areas GeoDataFrame
+    # load or generate areas GeoDataFrame
     area_path = data_dir / area_file
     if os.path.exists(area_path):
         areas = gpd.read_file(area_path)
@@ -278,7 +236,7 @@ def copc_to_poly_by_area(
         areas = split_areas(mask_url)
         areas.to_file(data_dir / "areas.gpkg", driver="GPKG")
 
-    # Process each area
+    # process each area
     for area_id, area in areas.iterrows():
         mesh_fp = data_dir / "mesh" / f"area{area_id + 1}"
         mesh_fp.mkdir(parents=True, exist_ok=True)
@@ -289,7 +247,7 @@ def copc_to_poly_by_area(
         grid_df = get_grid_df(mask_url, grid_size, grid_stride, area.geometry)
         grids = [row["geometry"] for _, row in grid_df.iterrows()]
 
-        # Iterate over grids within area
+        # iterate over grids within area
         for _, grid in enumerate(tqdm(grids)):
             fname = f"e{int(grid.centroid.x)}_n{int(grid.centroid.y)}_{grid_df.crs}.ply".replace(":", "")
 
@@ -305,18 +263,29 @@ def copc_to_poly_by_area(
             save_points(pcd_fp / fname, points, rgb, intensity, mask)
 
             ground_points = points[ground_id].copy()
-            ground_points[:, 2] = 0  # Flatten Z for triangulation
+            ground_points[:, 2] = 0  # flatten Z for triangulation
             pcd = pv.PolyData(ground_points)
 
-            # Generate surface mesh via 2D Delaunay triangulation
+            # generate surface mesh via 2D Delaunay triangulation
             surface = pcd.delaunay_2d()
-            surface.points[:, 2] = points[ground_id][:, 2]  # Restore original Z values
+            surface.points[:, 2] = points[ground_id][:, 2]  # restore original Z values
             surface = sim.simplify_mesh(surface, target_reduction=0.99, agg=agg)
             surface = surface.clean()
             surface.compute_normals(inplace=True)
 
             v, f = surface.points, surface.faces.reshape(-1, 4)[:, 1:]
             vn, fn = surface.point_data['Normals'], surface.cell_data['Normals']
+
+            mesh = trimesh.Trimesh(v, f, face_normals=fn, vertex_normals=vn, process=True, validate=True, merge_tex=True)
+            # mesh cleanup
+            mesh.remove_degenerate_faces()
+            mesh.remove_unreferenced_vertices()
+            mesh.update_faces(mesh.unique_faces())
+            mesh.merge_vertices()
+            mesh.fill_holes()
+            mesh.fix_normals()
+
+            v, fv = mesh.vertices, mesh.triangles_center
 
             v_bounds = (v[:,0].min(), v[:,1].min(), 
                         v[:,0].max(), v[:,1].max())
@@ -333,27 +302,30 @@ def copc_to_poly_by_area(
             except Exception as e:
                 print(f"Unexpected error {e}")
                 continue
-            
-            import trimesh
-            fv = trimesh.Trimesh(v, f).triangles_center
-            
+
+            f_bounds = (fv[:,0].min(), fv[:,1].min(), 
+                        fv[:,0].max(), fv[:,1].max())
             try:
-                f_rgb = from_cog(rgb_url, v_bounds, fv[:, :2])    # use point bounds to ensure correct spatial extent
+                f_rgb = from_cog(rgb_url, f_bounds, fv[:, :2])
                 f_rgb = f_rgb.astype(np.uint8)
             except Exception as e:
                 print(f"Unexpected error {e}")
                 continue
             
             try:
-                f_mask = from_cog(mask_url, v_bounds, fv[:, :2])  # use point bounds to ensure correct spatial extent
+                f_mask = from_cog(mask_url, f_bounds, fv[:, :2])
                 f_mask = f_mask.astype(np.float64).reshape(-1)
             except Exception as e:
                 print(f"Unexpected error {e}")
                 continue
-            
-            save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, v_mask=v_mask, f_rgb=f_rgb, f_mask=f_mask)
-            
-            
+
+            mesh.visual.vertex_colors=v_rgb
+            mesh.visual.face_colors=f_rgb
+            mesh.vertex_attributes={'mask': v_mask}
+            mesh.face_attributes={'mask': f_mask}
+            mesh.export(mesh_fp / fname)
+
+
 def copc_to_poly(
     copc_url: str, 
     rgb_url: str,
@@ -391,19 +363,26 @@ def copc_to_poly(
             continue      # Ad-hoc fix to skip current iteration for empty point clouds returned                
         
         ground_points = points[ground_id].copy()
-        ground_points[:, 2] = 0  # Flatten Z for triangulation
+        ground_points[:, 2] = 0  # flatten Z for triangulation
         pcd = pv.PolyData(ground_points)
 
-        # Generate surface mesh via 2D Delaunay triangulation
+        # generate surface mesh via 2D Delaunay triangulation
         surface = pcd.delaunay_2d()
-        surface.points[:, 2] = points[ground_id][:, 2]  # Restore original Z values
+        surface.points[:, 2] = points[ground_id][:, 2]  # restore original Z values
         surface = sim.simplify_mesh(surface, target_reduction=0.99, agg=agg)
         surface = surface.clean()
         surface.compute_normals(inplace=True)
 
-        # Extract vertices, faces, normals, and colors
-        v, f = surface.points, surface.faces.reshape(-1, 4)[:, 1:]
-        vn, fn = surface.point_data['Normals'], surface.cell_data['Normals']
+        mesh = trimesh.Trimesh(v, f, face_normals=fn, vertex_normals=vn, process=True, validate=True, merge_tex=True)
+        # mesh cleanup
+        mesh.remove_degenerate_faces()
+        mesh.remove_unreferenced_vertices()
+        mesh.update_faces(mesh.unique_faces())
+        mesh.merge_vertices()
+        mesh.fill_holes()
+        mesh.fix_normals()
+
+        v, fv = mesh.vertices, mesh.triangles_center
 
         v_bounds = (v[:,0].min(), v[:,1].min(), 
                     v[:,0].max(), v[:,1].max())
@@ -414,16 +393,18 @@ def copc_to_poly(
             print(f"Unexpected error {e}")
             continue
 
-        import trimesh
-        fv = trimesh.Trimesh(v, f).triangles_center
+        f_bounds = (fv[:,0].min(), fv[:,1].min(), 
+                    fv[:,0].max(), fv[:,1].max())
         try:
-            f_rgb = from_cog(rgb_url, v_bounds, fv[:, :2])
+            f_rgb = from_cog(rgb_url, f_bounds, fv[:, :2])
             f_rgb = f_rgb.astype(np.uint8)
         except Exception as e:
             print(f"Unexpected error {e}")
             continue
-        
-        save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, f_rgb=f_rgb, agg=agg)
+
+        mesh.visual.vertex_colors=v_rgb
+        mesh.visual.face_colors=f_rgb
+        mesh.export(mesh_fp / fname)
 
 
 if __name__ == '__main__':
