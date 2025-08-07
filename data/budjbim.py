@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 import geopandas as gpd
 import pyvista as pv
+import fast_simplification as sim
 import CSF
 
 from typing import Optional, List, Union, Tuple
@@ -162,7 +163,6 @@ def save_mesh(
     v_mask: Optional[np.ndarray] = None,
     f_rgb: Optional[np.ndarray] = None, 
     f_mask: Optional[np.ndarray] = None,
-    agg: int = 0
 ):
     # Wrap masks into dict with key 'mask' if they exist
     vertex_attributes = {'mask': v_mask} if v_mask is not None else None
@@ -191,9 +191,6 @@ def save_mesh(
     mesh.merge_vertices()
     mesh.fill_holes()
     mesh.fix_normals()
-
-    # Simplify mesh (in-place)
-    mesh.simplify_quadric_decimation(percent=0.01, aggression=agg)
 
     # Export mesh to file
     mesh.export(fname)
@@ -314,45 +311,49 @@ def copc_to_poly_by_area(
             # Generate surface mesh via 2D Delaunay triangulation
             surface = pcd.delaunay_2d()
             surface.points[:, 2] = points[ground_id][:, 2]  # Restore original Z values
+            surface = sim.simplify_mesh(surface, target_reduction=0.99, agg=agg)
             surface = surface.clean()
-            surface.compute_normals(point_normals=True, cell_normals=True, inplace=True)
+            surface.compute_normals(inplace=True)
 
-            # Extract vertices, faces, normals, and colors
             v, f = surface.points, surface.faces.reshape(-1, 4)[:, 1:]
-            vn, fn = surface.point_data["Normals"], surface.cell_data["Normals"]
-            v_rgb = rgb[ground_id]
-            f_rgb = v_rgb[f].mean(axis=1).astype(np.uint8)
-            fv = v[f].mean(axis=1)
+            vn, fn = surface.point_data['Normals'], surface.cell_data['Normals']
 
-            # Extract vertex mask from COG
-            v_bounds = (v[:, 0].min(), v[:, 1].min(), v[:, 0].max(), v[:, 1].max())
+            v_bounds = (v[:,0].min(), v[:,1].min(), 
+                        v[:,0].max(), v[:,1].max())
             try:
-                v_mask = from_cog(mask_url, v_bounds, v[:, :2]).astype(np.float64).reshape(-1)
+                v_rgb = from_cog(rgb_url, v_bounds, v[:, :2])
+                v_rgb = v_rgb.astype(np.uint8)
             except Exception as e:
-                print(f"Unexpected error extracting vertex mask: {e}")
+                print(f"Unexpected error {e}")
                 continue
-
-            # Extract face mask from COG
-            f_bounds = (fv[:,0].min(), fv[:,1].min(), fv[:,0].max(), fv[:,1].max())
+            
             try:
-                f_mask = from_cog(mask_url, f_bounds, fv[:, :2]).astype(np.float64).reshape(-1)
+                v_mask = from_cog(mask_url, v_bounds, v[:, :2])
+                v_mask = v_mask.astype(np.float64).reshape(-1)
             except Exception as e:
-                print(f"Unexpected error extracting face mask: {e}")
+                print(f"Unexpected error {e}")
                 continue
-
-            # Save mesh with all attributes
-            save_mesh(
-                mesh_fp / fname,
-                v,
-                f,
-                v_normal=vn,
-                f_normal=fn,
-                v_rgb=v_rgb,
-                v_mask=v_mask,
-                f_rgb=f_rgb,
-                f_mask=f_mask,
-                agg=agg,
-            )
+            
+            import trimesh
+            fv = trimesh.Trimesh(v, f).triangles_center
+            
+            f_bounds = (fv[:,0].min(), fv[:,1].min(), 
+                        fv[:,0].max(), fv[:,1].max())
+            try:
+                f_rgb = from_cog(rgb_url, f_bounds, fv[:, :2])
+                f_rgb = f_rgb.astype(np.uint8)
+            except Exception as e:
+                print(f"Unexpected error {e}")
+                continue
+            
+            try:
+                f_mask = from_cog(mask_url, f_bounds, fv[:, :2])
+                f_mask = f_mask.astype(np.float64).reshape(-1)
+            except Exception as e:
+                print(f"Unexpected error {e}")
+                continue
+            
+            save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, v_mask=v_mask, f_rgb=f_rgb, f_mask=f_mask)
             
             
 def copc_to_poly(
@@ -398,14 +399,34 @@ def copc_to_poly(
         # Generate surface mesh via 2D Delaunay triangulation
         surface = pcd.delaunay_2d()
         surface.points[:, 2] = points[ground_id][:, 2]  # Restore original Z values
+        surface = sim.simplify_mesh(surface, target_reduction=0.99, agg=agg)
         surface = surface.clean()
-        surface.compute_normals(point_normals=True, cell_normals=True, inplace=True)
+        surface.compute_normals(inplace=True)
 
         # Extract vertices, faces, normals, and colors
         v, f = surface.points, surface.faces.reshape(-1, 4)[:, 1:]
-        vn, fn = surface.point_data["Normals"], surface.cell_data["Normals"]
-        v_rgb = rgb[ground_id]
-        f_rgb = v_rgb[f].mean(axis=1).astype(np.uint8)
+        vn, fn = surface.point_data['Normals'], surface.cell_data['Normals']
+
+        v_bounds = (v[:,0].min(), v[:,1].min(), 
+                    v[:,0].max(), v[:,1].max())
+        try:
+            v_rgb = from_cog(rgb_url, v_bounds, v[:, :2])
+            v_rgb = v_rgb.astype(np.uint8)
+        except Exception as e:
+            print(f"Unexpected error {e}")
+            continue
+
+        import trimesh
+        fv = trimesh.Trimesh(v, f).triangles_center
+            
+        f_bounds = (fv[:,0].min(), fv[:,1].min(), 
+                    fv[:,0].max(), fv[:,1].max())
+        try:
+            f_rgb = from_cog(rgb_url, f_bounds, fv[:, :2])
+            f_rgb = f_rgb.astype(np.uint8)
+        except Exception as e:
+            print(f"Unexpected error {e}")
+            continue
         
         save_mesh(mesh_fp / fname, v, f, v_normal=vn, f_normal=fn, v_rgb=v_rgb, f_rgb=f_rgb, agg=agg)
 
