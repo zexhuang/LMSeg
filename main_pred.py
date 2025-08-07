@@ -46,7 +46,8 @@ if __name__ == '__main__':
                          cfg['num_nbrs'],
                          cfg['num_block'],
                          cfg['alpha'], 
-                         cfg['beta'])
+                         cfg['beta'],
+                         cfg['load_feature'])
         
         trainer = Trainer(cfg=cfg) 
         trainer.device = 'cuda' if torch.cuda.is_available() else 'cpu'
