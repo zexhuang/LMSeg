@@ -1,7 +1,7 @@
 # dataset
 dataset: bbw
-load_feature: rgb
-batch: 4
+load_feature: all
+batch: 8
 workers: 8
 
 # train config
@@ -12,20 +12,19 @@ w_decay: 0.0001
 device: cuda
 
 # model
-num_convs: 4
+num_convs: 3
 pool_factors: 
   - 3
   - 3
   - 3
-  - 3
-num_nbrs: 32
+num_nbrs: 8
 num_block: 1
 alpha: 0.001
 beta: 0.01
 
-in_channels: 15
-hid_channels: 36
+in_channels: 18
+hid_channels: 72
 out_channels: 1
 
 # save
-path: save/bbw/bbw_lmseg_rgb
+path: save/bbw/lmseg_feature_nbrs_8

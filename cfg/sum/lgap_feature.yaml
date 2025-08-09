@@ -11,7 +11,7 @@ w_decay: 0.0001
 device: cuda
 
 # model
-model: GA
+model: LGAP
 num_convs: 3
 pool_factors: 
   - 3
@@ -27,4 +27,4 @@ hid_channels: 72
 out_channels: 7
 
 # save
-path: save/sum/sum_ga_feature
+path: save/sum/lgap_feature

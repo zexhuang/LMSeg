@@ -1,6 +1,6 @@
 # dataset
 dataset: sum
-load_feature: all
+load_feature: rgb
 batch: 1
 workers: 8
 
@@ -27,4 +27,4 @@ hid_channels: 72
 out_channels: 7
 
 # save
-path: save/sum/sum_lmseg_feature
+path: save/sum/lmseg_rgb

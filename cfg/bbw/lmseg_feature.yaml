@@ -1,9 +1,8 @@
 # dataset
 dataset: bbw
 load_feature: all
-batch: 4
+batch: 8
 workers: 8
-num_points: 18000
 
 # train config
 epoch: 100
@@ -13,8 +12,19 @@ w_decay: 0.0001
 device: cuda
 
 # model
+num_convs: 3
+pool_factors: 
+  - 3
+  - 3
+  - 3
+num_nbrs: 32
+num_block: 1
+alpha: 0.001
+beta: 0.01
+
 in_channels: 18
+hid_channels: 72
 out_channels: 1
 
 # save
-path: save/bbw/bbw_pointnet_feature
+path: save/bbw/lmseg_feature

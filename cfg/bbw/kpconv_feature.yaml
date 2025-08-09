@@ -3,6 +3,7 @@ dataset: bbw
 load_feature: all
 batch: 4
 workers: 8
+num_points: 18000
 
 # train config
 epoch: 100
@@ -12,10 +13,8 @@ w_decay: 0.0001
 device: cuda
 
 # model
-in_channels: 18
+in_channels: 19
 out_channels: 1
-decimation: 4
-num_nbrs: 16
 
 # save
-path: save/bbw/bbw_randlanet_feature
+path: save/bbw/kpconv_feature

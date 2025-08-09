@@ -1,0 +1,30 @@
+# dataset
+dataset: sum
+batch: 1
+workers: 8
+
+# train config
+epoch: 200
+patience: 200
+lr: 0.005
+w_decay: 0.0001
+device: cuda
+
+# model
+model: HGAP
+num_convs: 3
+pool_factors: 
+  - 3
+  - 3
+  - 3
+num_nbrs: 32
+num_block: 1
+alpha: 0.001
+beta: 0.01
+
+in_channels: 3
+hid_channels: 72
+out_channels: 7
+
+# save
+path: save/sum/hgap_feature

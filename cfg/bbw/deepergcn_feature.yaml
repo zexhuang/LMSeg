@@ -18,4 +18,4 @@ hid_channels: 128
 num_layers: 28
 
 # save
-path: save/bbw/bbw_deepergcn_feature
+path: save/bbw/deepergcn_feature

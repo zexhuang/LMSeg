@@ -25,4 +25,4 @@ sum_res: False
 act: 'relu'
 
 # save
-path: save/bbw/bbw_gunet_feature
+path: save/bbw/gunet_feature

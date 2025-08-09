@@ -1,13 +1,13 @@
 # dataset
-dataset: sum
-load_feature: all
-batch: 1
+dataset: bbw
+load_feature: normals
+batch: 8
 workers: 8
 
 # train config
-epoch: 200
-patience: 200
-lr: 0.005
+epoch: 100
+patience: 100
+lr: 0.01
 w_decay: 0.0001
 device: cuda
 
@@ -17,14 +17,14 @@ pool_factors:
   - 3
   - 3
   - 3
-num_nbrs: 8
+num_nbrs: 32
 num_block: 1
 alpha: 0.001
 beta: 0.01
 
-in_channels: 3
+in_channels: 18
 hid_channels: 72
-out_channels: 7
+out_channels: 1
 
 # save
-path: save/sum/sum_lmseg_feature_nbrs_8
+path: save/bbw/lmseg_normals
