@@ -17,7 +17,7 @@ from train.trainer import Trainer
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='args for prediction')
     parser.add_argument('--cfg', type=str,  metavar='N',
-                        default='cfg/bbw/bbw_lmseg_feature.yaml',
+                        default='cfg/bbw/lmseg_feature.yaml',
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
                         default='data/BudjBimLandscape',
