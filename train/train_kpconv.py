@@ -60,7 +60,7 @@ class KPFCNNConfig(Config):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='args for model train val')
     parser.add_argument('--cfg', type=str,  metavar='N',
-                        default='cfg/bbw/bbw_kpconv_feature.yaml',
+                        default='cfg/bbw/kpconv_feature.yaml',
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
                         default='data/BudjBimWall',
@@ -82,22 +82,13 @@ if __name__ == '__main__':
         kp_config.train_batch_size = cfg['batch']
         kp_config.test_batch_size = cfg['batch']
     
-        train_set = BBWPointDataset(root=args.root, 
-                                    split='train', 
-                                    config=kp_config,
-                                    load_feature=cfg['load_feature'])
+        train_set = BBWPointDataset(root=args.root, split='train', config=kp_config)
         train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
         
-        val_set = BBWPointDataset(root=args.root, 
-                                  split='val', 
-                                  config=kp_config,
-                                  load_feature=cfg['load_feature'])
+        val_set = BBWPointDataset(root=args.root, split='val', config=kp_config)
         val_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
         
-        test_set = BBWPointDataset(root=args.root, 
-                                   split='test', 
-                                   config=kp_config,
-                                   load_feature=cfg['load_feature'])
+        test_set = BBWPointDataset(root=args.root, split='test', config=kp_config)
         test_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
     
         train_loader = get_dataloader(train_set, 

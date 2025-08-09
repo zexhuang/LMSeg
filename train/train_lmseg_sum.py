@@ -18,7 +18,7 @@ from train.trainer import Trainer
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='args for model train val')
     parser.add_argument('--cfg', type=str,  metavar='N',
-                        default='cfg/sum/sum_lmseg_feature.yaml',
+                        default='cfg/sum/lmseg_feature.yaml',
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
                         default='data/SUM',

@@ -8,7 +8,7 @@ import argparse
 from torch_geometric.loader import DataLoader
 from data.dataset import BudjBimWallMeshDataset
 
-from model.net import LMSegNet
+from model.net import GANet, HGAPNet, LGAPNet, LMSegNet
 from model.utils.loss import BCELogitsSmoothingLoss
 
 from train.trainer import Trainer
@@ -17,7 +17,7 @@ from train.trainer import Trainer
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='args for model train val')
     parser.add_argument('--cfg', type=str,  metavar='N',
-                        default='cfg/bbw/bbw_lmseg_feature.yaml',
+                        default='cfg/bbw/lmseg_feature.yaml',
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
                         default='data/BudjBimWall',
@@ -55,15 +55,41 @@ if __name__ == '__main__':
                                  shuffle=False, 
                                  num_workers=cfg['workers'])
         
-        model = LMSegNet(cfg['in_channels'], cfg['out_channels'],
-                         cfg['hid_channels'], 
-                         cfg['num_convs'], 
-                         cfg['pool_factors'], 
-                         cfg['num_nbrs'],
-                         cfg['num_block'],
-                         cfg['alpha'], 
-                         cfg['beta'],
-                         cfg['load_feature'])
+        if 'model' in cfg:
+            if cfg['model'] == 'GA':
+                model = GANet(cfg['in_channels'], cfg['out_channels'],
+                            cfg['hid_channels'], 
+                            cfg['num_convs'], 
+                            cfg['pool_factors'], 
+                            cfg['num_nbrs'],
+                            cfg['num_block'])
+            elif cfg['model'] == 'HGAP':
+                model = HGAPNet(cfg['in_channels'], cfg['out_channels'],
+                                cfg['hid_channels'], 
+                                cfg['num_convs'], 
+                                cfg['pool_factors'], 
+                                cfg['num_nbrs'],
+                                cfg['num_block'],
+                                cfg['alpha'], 
+                                cfg['beta'])
+            elif cfg['model'] == 'LGAP':
+                model = LGAPNet(cfg['in_channels'], cfg['out_channels'],
+                                cfg['hid_channels'], 
+                                cfg['num_convs'], 
+                                cfg['pool_factors'], 
+                                cfg['num_block'],
+                                cfg['alpha'], 
+                                cfg['beta'])
+        else:
+            model = LMSegNet(cfg['in_channels'], cfg['out_channels'],
+                                cfg['hid_channels'], 
+                                cfg['num_convs'], 
+                                cfg['pool_factors'], 
+                                cfg['num_nbrs'],
+                                cfg['num_block'],
+                                cfg['alpha'], 
+                                cfg['beta'],
+                                cfg['load_feature'])
         
         trainer = Trainer(cfg=cfg) 
         trainer.fit(model, 

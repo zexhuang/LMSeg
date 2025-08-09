@@ -17,7 +17,7 @@ from train.trainer import Trainer
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='args for model train val')
     parser.add_argument('--cfg', type=str,  metavar='N',
-                        default='cfg/bbw/bbw_deepergcn_feature.yaml',
+                        default='cfg/bbw/deepergcn_feature.yaml',
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
                         default='data/BudjBimWall',
@@ -32,15 +32,9 @@ if __name__ == '__main__':
         print(yaml.dump(cfg, sort_keys=False, default_flow_style=False))
         print("="*25 + "\n")  
         
-        train_set = BudjBimWallMeshDataset(root=args.root, 
-                                           split='train', 
-                                           load_feature=cfg['load_feature'])
-        val_set = BudjBimWallMeshDataset(root=args.root, 
-                                         split='val', 
-                                         load_feature=cfg['load_feature'])
-        test_set = BudjBimWallMeshDataset(root=args.root, 
-                                          split='test', 
-                                          load_feature=cfg['load_feature'])
+        train_set = BudjBimWallMeshDataset(root=args.root, split='train')
+        val_set = BudjBimWallMeshDataset(root=args.root, split='val')
+        test_set = BudjBimWallMeshDataset(root=args.root, split='test')
             
         train_loader = DataLoader(train_set, 
                                   batch_size=cfg['batch'], 
