@@ -11,7 +11,7 @@ from data.dataset import SUMDataset
 from torchmetrics.classification import (Accuracy, 
                                          JaccardIndex)
 from model.utils.loss import CrossEntropyWithLabelWeight
-from model.net import LMSegNet
+from model.net import GANet, HGAPNet, LGAPNet, LMSegNet
 from train.trainer import Trainer
 
 
@@ -56,15 +56,41 @@ if __name__ == '__main__':
                                  shuffle=False, 
                                  num_workers=cfg['workers'])
         
-        model = LMSegNet(cfg['in_channels'], cfg['out_channels'],
-                         cfg['hid_channels'], 
-                         cfg['num_convs'], 
-                         cfg['pool_factors'], 
-                         cfg['num_nbrs'],
-                         cfg['num_block'],
-                         cfg['alpha'], 
-                         cfg['beta'],
-                         cfg['load_feature'])
+        if 'model' in cfg:
+            if cfg['model'] == 'GA':
+                model = GANet(cfg['in_channels'], cfg['out_channels'],
+                            cfg['hid_channels'], 
+                            cfg['num_convs'], 
+                            cfg['pool_factors'], 
+                            cfg['num_nbrs'],
+                            cfg['num_block'])
+            elif cfg['model'] == 'HGAP':
+                model = HGAPNet(cfg['in_channels'], cfg['out_channels'],
+                                cfg['hid_channels'], 
+                                cfg['num_convs'], 
+                                cfg['pool_factors'], 
+                                cfg['num_nbrs'],
+                                cfg['num_block'],
+                                cfg['alpha'], 
+                                cfg['beta'])
+            elif cfg['model'] == 'LGAP':
+                model = LGAPNet(cfg['in_channels'], cfg['out_channels'],
+                                cfg['hid_channels'], 
+                                cfg['num_convs'], 
+                                cfg['pool_factors'], 
+                                cfg['num_block'],
+                                cfg['alpha'], 
+                                cfg['beta'])
+        else:
+            model = LMSegNet(cfg['in_channels'], cfg['out_channels'],
+                                cfg['hid_channels'], 
+                                cfg['num_convs'], 
+                                cfg['pool_factors'], 
+                                cfg['num_nbrs'],
+                                cfg['num_block'],
+                                cfg['alpha'], 
+                                cfg['beta'],
+                                cfg['load_feature'])
         
         all_labels = torch.cat([data.y for data in train_set])
         class_freq = torch.bincount(all_labels, minlength=cfg['out_channels']).float()
