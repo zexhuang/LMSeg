@@ -72,13 +72,13 @@ Given the large area and high point density of the Budj Bim landscape, the [Semi
 ## **Model Training**
 
 ```bash
-python3 train/train_lmseg_sum.py --cfg=cfg/sum/sum_lmseg_feature.yaml
+python3 train/train_lmseg_sum.py --cfg=cfg/sum/lmseg_feature.yaml
 ```
 
 or
 
 ```bash
-python3 train/train_lmseg.py --cfg=cfg/bbw/bbw_lmseg_feature.yaml
+python3 train/train_lmseg.py --cfg=cfg/bbw/lmseg_feature.yaml
 ```
 
 ## **Evaluation**
@@ -86,7 +86,7 @@ python3 train/train_lmseg.py --cfg=cfg/bbw/bbw_lmseg_feature.yaml
 Pre-trained models are located at:
 
 ```bash
-save/sum/sum_lmseg_feature/ckpt/epoch{}
+save/sum/lmseg_feature/ckpt/epoch{}
 ```
 
 or
