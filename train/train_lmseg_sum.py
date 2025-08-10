@@ -46,14 +46,17 @@ if __name__ == '__main__':
         train_loader = DataLoader(train_set, 
                                   batch_size=cfg['batch'], 
                                   shuffle=True, 
+                                  pin_memory=True,
                                   num_workers=cfg['workers'])   
         val_loader = DataLoader(val_set, 
                                 batch_size=cfg['batch'], 
                                 shuffle=False, 
+                                pin_memory=True,
                                 num_workers=cfg['workers'])
         test_loader = DataLoader(test_set, 
                                  batch_size=cfg['batch'], 
                                  shuffle=False, 
+                                 pin_memory=True,
                                  num_workers=cfg['workers'])
         
         if 'model' in cfg:

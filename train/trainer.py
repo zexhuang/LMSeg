@@ -103,7 +103,7 @@ class Trainer(BaseTrainer):
         total_loss = 0.0
 
         for data in dataloader:
-            data = data.to(self.device)
+            data = data.to(self.device, non_blocking=True)
             optimizer.zero_grad()
             out = model(data)
             loss = criterion(out['y'], data['y'])
@@ -119,7 +119,7 @@ class Trainer(BaseTrainer):
 
         with torch.no_grad():
             for data in dataloader:
-                data = data.to('cpu')
+                data = data.to(self.device, non_blocking=True)
                 out = model(data)
                 loss = criterion(out['y'], data['y'])
                 total_loss += len(data) * loss.item()
@@ -147,7 +147,7 @@ class Trainer(BaseTrainer):
 
         with torch.no_grad():
             for data in dataloader:
-                data = data.to(self.device)
+                data = data.to(self.device, non_blocking=True)
                 out = model(data)
                 for name, cm in metric.items():
                     cm.update(out['y'], data['y'].long())
@@ -267,7 +267,7 @@ class KPConvTrainer(BaseTrainer):
             if isinstance(v, list):
                 data[k] = [item.to(device) for item in v]
             else:
-                data[k] = v.to(device)
+                data[k] = v.to(device, non_blocking=True)
         return data
 
 
