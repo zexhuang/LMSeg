@@ -39,7 +39,6 @@ if __name__ == '__main__':
         print("="*25 + "\n") 
         
         areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
-        
         for area in areas:
             trainer = Trainer(cfg=cfg)
             
