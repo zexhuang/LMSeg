@@ -94,7 +94,7 @@ if __name__ == '__main__':
                                  cfg['beta'],
                                  cfg['load_feature'])
                 
-            trainer.path = cfg['path'] + area
+            trainer.path = cfg['path'] + f'/{area}'
             trainer.fit(model, 
                         criterion=BCELogitsSmoothingLoss(),
                         train_loader=train_loader, 
