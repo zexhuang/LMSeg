@@ -15,6 +15,7 @@ from torch import nn
 from torch_geometric.data import Dataset, Data
 from torch_geometric.utils import (coalesce, remove_self_loops,
                                    to_undirected, is_undirected)
+from sklearn.model_selection import train_test_split
 
 
 class ColorJitter(nn.Module):
@@ -257,35 +258,69 @@ class BudjBimWallMeshDataset(Dataset):
     def __init__(self, 
                  root: Union[Path, str],
                  split: str = 'train', 
+                 test_area: str = 'area4',
+                 train_size: float = 0.8,
                  transform = None, 
                  pre_transform = None):
         self.root = Path(root)       
         self.root.mkdir(parents=True, exist_ok=True)
         
-        self.areas = {'train': ['area1', 'area3', 'area5', 'area6'],
-                      'val': ['area4'],
-                      'test': ['area2']}
+        super().__init__(self.root, transform, pre_transform)  
         
-        super().__init__(self.root, transform, pre_transform)
+        assert split in ['train', 'val', 'test'], f"Valid data split should be one of {['train', 'val', 'test']}"
         
-        assert split in ['train', 'val', 'test']
-        self.split = split        
+        valid_areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
+        if test_area not in valid_areas:
+            raise ValueError(
+                f"Invalid test area: {test_area}. Valid options are {valid_areas}."
+            )
+
+        self.train_val_areas = [area for area in valid_areas if area != test_area]
+        self.test_area = test_area
+        
+        if not (0 < train_size <= 1.0):
+            raise ValueError("train_size must be in the range (0, 1].")
+        self.train_size = train_size
          
         self.mesh_list = []
-        for area in self.areas[split]:
+        for area in valid_areas:
             self.mesh_list += sorted(list((self.root / 'mesh' / area).glob('*.ply')))
         self.mesh_list = sorted(self.mesh_list)
             
         self.data_list = []
-        for area in self.areas[split]:
+        for area in valid_areas:
             self.data_list += sorted(list((Path(self.processed_dir) / area).glob('*.pt')))
+            
+        self._prepare_data_split(split)
         
         if transform:
             self.transform=transform
         elif split == 'train': 
             self.transform = self.get_transform['train']
-        elif split == 'test' or 'val': 
+        elif split in ('test','val'):
             self.transform = self.get_transform['test']
+            
+    def _prepare_data_split(self, split):
+        """
+        Prepare train, validation, or test data splits.
+        """
+        random_state = 42
+        
+        train_val_data_files = []
+        for area in self.train_val_areas:
+            train_val_data_files += sorted(list((Path(self.processed_dir) / area).glob('*.pt')))
+            
+        test_files = []
+        test_files = sorted(list((Path(self.processed_dir) / self.test_area).glob('*.pt')))
+            
+        if split == 'train':
+            train_files, _ = train_test_split(train_val_data_files, train_size=self.train_size, random_state=random_state)
+            setattr(self, "data_files", train_files)
+        elif split == 'val':
+            _, val_files = train_test_split(train_val_data_files, train_size=self.train_size, random_state=random_state)
+            setattr(self, f"data_files", val_files)
+        else:
+            setattr(self, f"data_files", test_files)  
         
     @property
     def get_transform(self) -> dict:
@@ -352,10 +387,10 @@ class BudjBimWallMeshDataset(Dataset):
                 torch.save(data, os.path.join(self.processed_paths[area_id], f'{f.stem}.pt'))
         
     def len(self):
-        return len(self.data_list) 
+        return len(self.data_files) 
     
     def get(self, idx):        
-        data = torch.load(self.data_list[idx], weights_only=False)         
+        data = torch.load(self.data_files[idx], weights_only=False)         
         return data
 
 
@@ -385,7 +420,7 @@ class SUMDataset(Dataset):
             self.transform=transform
         elif split == 'train': 
             self.transform = self.get_transform['train']
-        elif split == 'test' or 'validate': 
+        elif split in ('test', 'validate'):
             self.transform = self.get_transform['test']
             
     @property
