@@ -297,7 +297,7 @@ class BudjBimWallMeshDataset(Dataset):
             self.transform=transform
         elif split == 'train': 
             self.transform = self.get_transform['train']
-        elif split in ('test','val'):
+        elif split in ['test', 'val']: 
             self.transform = self.get_transform['test']
             
     def _prepare_data_split(self, split):
@@ -318,9 +318,9 @@ class BudjBimWallMeshDataset(Dataset):
             setattr(self, "data_files", train_files)
         elif split == 'val':
             _, val_files = train_test_split(train_val_data_files, train_size=self.train_size, random_state=random_state)
-            setattr(self, f"data_files", val_files)
+            setattr(self, "data_files", val_files)
         else:
-            setattr(self, f"data_files", test_files)  
+            setattr(self, "data_files", test_files)  
         
     @property
     def get_transform(self) -> dict:
