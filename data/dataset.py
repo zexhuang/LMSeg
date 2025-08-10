@@ -307,7 +307,7 @@ class BudjBimWallMeshDataset(Dataset):
         for area_id, area in enumerate(self.processed_file_names):
             Path(self.processed_paths[area_id]).mkdir(parents=True, exist_ok=True)
             
-            raw_ply_files = list(self.root / 'mesh' / area / f for f in os.listdir(self.root / area))
+            raw_ply_files = list(self.root / 'mesh' / area / f for f in os.listdir(self.root / 'mesh' / area))
                 
             for f in tqdm(raw_ply_files, desc="Processing meshes"):
                 plydata = trimesh.load(f, force="mesh")
