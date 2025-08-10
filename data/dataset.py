@@ -281,17 +281,12 @@ class BudjBimWallMeshDataset(Dataset):
         if not (0 < train_size <= 1.0):
             raise ValueError("train_size must be in the range (0, 1].")
         self.train_size = train_size
-         
-        self.mesh_list = []
-        for area in valid_areas:
-            self.mesh_list += sorted(list((self.root / 'mesh' / area).glob('*.ply')))
-        self.mesh_list = sorted(self.mesh_list)
             
-        self.data_list = []
-        for area in valid_areas:
-            self.data_list += sorted(list((Path(self.processed_dir) / area).glob('*.pt')))
+        self.mesh_list = sorted(f for area in valid_areas for f in (self.root / 'mesh' / area).glob('*.ply'))
+        self.data_list = sorted(f for area in valid_areas for f in (Path(self.processed_dir) / area).glob('*.pt'))
             
         self._prepare_data_split(split)
+        self.processd_data = [torch.load(data, weights_only=False) for data in self.data_files]
         
         if transform:
             self.transform=transform
@@ -387,10 +382,12 @@ class BudjBimWallMeshDataset(Dataset):
                 torch.save(data, os.path.join(self.processed_paths[area_id], f'{f.stem}.pt'))
         
     def len(self):
-        return len(self.data_files) 
+        # return len(self.data_files) 
+        return len(self.processd_data)
     
     def get(self, idx):        
-        data = torch.load(self.data_files[idx], weights_only=False)         
+        # data = torch.load(self.data_files[idx], weights_only=False)         
+        data = self.processd_data[idx]
         return data
 
 
