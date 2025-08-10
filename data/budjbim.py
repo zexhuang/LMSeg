@@ -443,7 +443,7 @@ if __name__ == '__main__':
                         help='indicate whether to enable slope smoothing in CSF, defaults to True.')
     parser.add_argument('--agg', type=float, default=0, metavar='N',
                         help='controls how aggressively to decimate the mesh.')
-    parser.add_argument('--output', type=str, default='BBW/BudjBimWall', metavar='N',
+    parser.add_argument('--output', type=str, default='BBW', metavar='N',
                         help='output folder')
     args = parser.parse_args()
     

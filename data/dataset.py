@@ -259,7 +259,8 @@ class BudjBimWallMeshDataset(Dataset):
                  split: str = 'train', 
                  transform = None, 
                  pre_transform = None):
-        self.root = Path(root) / 'mesh'       
+        self.root = Path(root)       
+        self.root.mkdir(parents=True, exist_ok=True)
         
         self.areas = {'train': ['area1', 'area3', 'area5', 'area6'],
                       'val': ['area4'],
@@ -272,7 +273,7 @@ class BudjBimWallMeshDataset(Dataset):
          
         self.mesh_list = []
         for area in self.areas[split]:
-            self.mesh_list += sorted(list((self.root / area).glob('*.ply')))
+            self.mesh_list += sorted(list((self.root / 'mesh' / area).glob('*.ply')))
         self.mesh_list = sorted(self.mesh_list)
             
         self.data_list = []
