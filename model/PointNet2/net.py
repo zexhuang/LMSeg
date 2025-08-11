@@ -68,6 +68,7 @@ class PointNet2(nn.Module):
         self.mlp = MLP([128, 128, 128, out_channels], dropout=0.5)
         
     def forward(self, data):
+        data.x = torch.cat([data.normals, data.rgb], dim=-1)
         sa0_out = (data.x, data.pos, data.batch)
         sa1_out = self.sa1_module(*sa0_out)
         sa2_out = self.sa2_module(*sa1_out)

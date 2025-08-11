@@ -20,34 +20,47 @@ if __name__ == '__main__':
                         default='cfg/bbw/pointnet2_feature.yaml',
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
-                        default='data/BudjBimWall',
+                        default='data/BBW',
                         help='path to dataset folder')
+    parser.add_argument('--path', type=str,  metavar='N',
+                        default=None,
+                        help='path to save model')
     args = parser.parse_args()
     
     
     with open(args.cfg, 'r') as f:
         cfg = yaml.safe_load(f)    
         
+        if args.path is not None:
+            cfg['path'] = args.path
+        
         print("\nLoaded Configuration:\n" + "="*25)
         print(yaml.dump(cfg, sort_keys=False, default_flow_style=False))
-        print("="*25 + "\n")
+        print("="*25 + "\n") 
         
-        train_set = BudjBimWallMeshDataset(root=args.root, split='train')
-        val_set = BudjBimWallMeshDataset(root=args.root, split='val')
-        test_set = BudjBimWallMeshDataset(root=args.root, split='test')
+        areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
+        for area in areas:
+            trainer = Trainer(cfg=cfg)
             
-        train_loader = DataLoader(train_set, 
-                                  batch_size=cfg['batch'], 
-                                  shuffle=True, 
-                                  num_workers=cfg['workers'])   
-        val_loader = DataLoader(val_set, 
-                                batch_size=cfg['batch'], 
-                                shuffle=False, 
-                                num_workers=cfg['workers'])
-        test_loader = DataLoader(test_set, 
-                                 batch_size=cfg['batch'], 
-                                 shuffle=False, 
-                                 num_workers=cfg['workers'])
+            train_set = BudjBimWallMeshDataset(root=args.root, split='train', test_area=area)
+            val_set = BudjBimWallMeshDataset(root=args.root, split='val', test_area=area)
+            test_set = BudjBimWallMeshDataset(root=args.root, split='test', test_area=area)
+            
+            train_loader = DataLoader(train_set, 
+                                      batch_size=cfg['batch'], 
+                                      shuffle=True, 
+                                      pin_memory=True,
+                                      num_workers=cfg['workers'])   
+            val_loader = DataLoader(val_set, 
+                                    batch_size=cfg['batch'], 
+                                    shuffle=False, 
+                                    pin_memory=True,
+                                    num_workers=cfg['workers'])
+            test_loader = DataLoader(test_set, 
+                                    batch_size=cfg['batch'], 
+                                    shuffle=False, 
+                                    pin_memory=True,
+                                    num_workers=cfg['workers'])    
         
         model = PointNet2(cfg['in_channels'], 
                           cfg['out_channels'],

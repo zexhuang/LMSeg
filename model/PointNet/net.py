@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.parallel
-import torch.utils.data
 import torch.nn.functional as F
 
 from torch_geometric.utils import to_dense_batch
@@ -24,8 +22,8 @@ class PointNetSeg(nn.Module):
         self.bn3 = nn.BatchNorm1d(128)
 
     def forward(self, data):
-        pos, x, batch, batch_size = data.pos, data.x, data.batch, data.batch_size
-        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        batch, batch_size = data.batch, data.batch_size
+        x = torch.cat([data.normals, data.rgb, data.pos], dim=-1)
         
         x = to_dense_batch(x, batch, batch_size=batch_size)[0]
         x = x.permute(0,2,1)
