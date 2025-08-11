@@ -23,7 +23,7 @@ class PointNetSeg(nn.Module):
 
     def forward(self, data):
         batch, batch_size = data.batch, data.batch_size
-        x = torch.cat([data.normals, data.rgb, data.pos], dim=-1)
+        x = torch.cat([data.rgb, data.normals, data.pos], dim=-1)
         
         x = to_dense_batch(x, batch, batch_size=batch_size)[0]
         x = x.permute(0,2,1)
