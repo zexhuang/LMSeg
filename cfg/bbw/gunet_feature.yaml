@@ -6,7 +6,7 @@ workers: 8
 # train config
 epoch: 150
 patience: 150
-lr: 0.01
+lr: 0.001
 w_decay: 0.0001
 device: cuda
 
