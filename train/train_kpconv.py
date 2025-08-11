@@ -114,6 +114,7 @@ if __name__ == '__main__':
             model = KPFCNN(kp_config)
             
             trainer = KPConvTrainer(cfg) 
+            trainer.path = cfg['path'] + f'/{area}'
             trainer.fit(model, 
                         criterion=BCELogitsSmoothingLoss(),
                         train_loader=train_loader, 

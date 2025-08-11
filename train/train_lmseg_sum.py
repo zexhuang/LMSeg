@@ -8,8 +8,8 @@ import argparse
 import torch
 from torch_geometric.loader import DataLoader
 from data.dataset import SUMDataset
-from torchmetrics.classification import (Accuracy, 
-                                         JaccardIndex)
+from torchmetrics.classification import Accuracy, JaccardIndex
+
 from model.utils.loss import CrossEntropyWithLabelWeight
 from model.net import GANet, HGAPNet, LGAPNet, LMSegNet
 from train.trainer import Trainer

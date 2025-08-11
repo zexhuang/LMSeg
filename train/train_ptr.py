@@ -7,8 +7,9 @@ import argparse
 import torch
 
 from torch_geometric.loader import DataLoader
-from data.dataset import BudjBimWallMeshDataset
+from torchmetrics.classification import BinaryF1Score, BinaryJaccardIndex
 
+from data.dataset import BudjBimWallMeshDataset
 from model.PointTransformer.net import PointTransformer
 from model.utils.loss import BCELogitsSmoothingLoss
 
@@ -40,9 +41,7 @@ if __name__ == '__main__':
         print("="*25 + "\n") 
         
         areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
-        for area in areas:
-            trainer = Trainer(cfg=cfg)
-            
+        for area in areas:            
             train_set = BudjBimWallMeshDataset(root=args.root, split='train', test_area=area)
             val_set = BudjBimWallMeshDataset(root=args.root, split='val', test_area=area)
             test_set = BudjBimWallMeshDataset(root=args.root, split='test', test_area=area)
@@ -68,7 +67,9 @@ if __name__ == '__main__':
                                      cfg['hid_channels'], 
                                      cfg['pool_ratio'], 
                                      cfg['num_nbrs'])
-
+            
+            trainer = Trainer(cfg=cfg)
+            trainer.path = cfg['path'] + f'/{area}'
             trainer.fit(model, 
                         criterion=BCELogitsSmoothingLoss(),
                         train_loader=train_loader, 
@@ -82,5 +83,6 @@ if __name__ == '__main__':
             )
             trainer.eval(model, 
                         test_loader, 
+                        metric={'f1': BinaryF1Score(), 'mIoU': BinaryJaccardIndex()},
                         ckpt=f"epoch{cfg['epoch']}.pth",
                         verbose=True)

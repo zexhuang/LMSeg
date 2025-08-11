@@ -7,8 +7,9 @@ import argparse
 import torch_geometric.transforms as T
 
 from torch_geometric.loader import DataLoader
-from data.dataset import BudjBimWallMeshDataset
+from torchmetrics.classification import BinaryF1Score, BinaryJaccardIndex
 
+from data.dataset import BudjBimWallMeshDataset
 from model.PointNet.net import PointNetSeg
 from model.PointNet.pointnet_utils import BCERegLoss
 
@@ -40,9 +41,7 @@ if __name__ == '__main__':
         print("="*25 + "\n") 
         
         areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
-        for area in areas:
-            trainer = Trainer(cfg=cfg)
-            
+        for area in areas:            
             train_set = BudjBimWallMeshDataset(root=args.root, split='train', test_area=area)
             train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
             
@@ -68,15 +67,18 @@ if __name__ == '__main__':
                                      pin_memory=True,
                                      num_workers=cfg['workers'])    
         
-        model = PointNetSeg(cfg['in_channels'], 
-                            cfg['out_channels'],
-                            get_trans_feat=True)
-                
-        trainer.fit(model, 
-                    criterion=BCERegLoss(),
-                    train_loader=train_loader, 
-                    val_loader=val_loader)
-        trainer.eval(model, 
-                     test_loader, 
-                     ckpt=f"epoch{cfg['epoch']}.pth",
-                     verbose=True)
+            model = PointNetSeg(cfg['in_channels'], 
+                                cfg['out_channels'],
+                                get_trans_feat=True)
+                    
+            trainer = Trainer(cfg=cfg)
+            trainer.path = cfg['path'] + f'/{area}'
+            trainer.fit(model, 
+                        criterion=BCERegLoss(),
+                        train_loader=train_loader, 
+                        val_loader=val_loader)
+            trainer.eval(model, 
+                        test_loader, 
+                        metric={'f1': BinaryF1Score(), 'mIoU': BinaryJaccardIndex()},
+                        ckpt=f"epoch{cfg['epoch']}.pth",
+                        verbose=True)
