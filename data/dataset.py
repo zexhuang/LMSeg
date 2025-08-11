@@ -286,7 +286,6 @@ class BudjBimWallMeshDataset(Dataset):
         self.data_list = sorted(f for area in valid_areas for f in (Path(self.processed_dir) / area).glob('*.pt'))
             
         self._prepare_data_split(split)
-        self.processd_data = [torch.load(data, weights_only=False) for data in self.data_files]
         
         if transform:
             self.transform=transform
@@ -382,12 +381,10 @@ class BudjBimWallMeshDataset(Dataset):
                 torch.save(data, os.path.join(self.processed_paths[area_id], f'{f.stem}.pt'))
         
     def len(self):
-        # return len(self.data_files) 
-        return len(self.processd_data)
+        return len(self.data_files) 
     
     def get(self, idx):        
-        # data = torch.load(self.data_files[idx], weights_only=False)         
-        data = self.processd_data[idx]
+        data = torch.load(self.data_files[idx], weights_only=False)
         return data
 
 
