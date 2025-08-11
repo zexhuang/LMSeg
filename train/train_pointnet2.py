@@ -67,7 +67,6 @@ if __name__ == '__main__':
                           cfg['pool_ratio'],
                           cfg['num_nbrs'])
 
-        trainer = Trainer(cfg=cfg) 
         trainer.fit(model, 
                     criterion=BCELogitsSmoothingLoss(),
                     train_loader=train_loader, 

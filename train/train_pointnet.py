@@ -72,7 +72,6 @@ if __name__ == '__main__':
                             cfg['out_channels'],
                             get_trans_feat=True)
                 
-        trainer = Trainer(cfg=cfg) 
         trainer.fit(model, 
                     criterion=BCERegLoss(),
                     train_loader=train_loader, 
