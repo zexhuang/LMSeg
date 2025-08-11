@@ -1,18 +1,17 @@
 # dataset
 dataset: bbw
-load_feature: all
-batch: 4
+batch: 8
 workers: 8
 
 # train config
 epoch: 150
 patience: 150
-lr: 0.005
+lr: 0.5
 w_decay: 0.0001
 device: cuda
 
 # model
-in_channels: 18
+in_channels: 27
 out_channels: 1
 hid_channels:
   - 32

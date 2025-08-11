@@ -139,8 +139,8 @@ class PointTransformer(torch.nn.Module):
                               plain_last=True)
 
     def forward(self, data):
-        pos, x, batch = data.pos, data.x, data.batch
-        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        pos, batch = data.pos, data.batch
+        x = torch.cat([data.rgb, data.normals, pos], dim=-1)
 
         out_x = []
         out_pos = []

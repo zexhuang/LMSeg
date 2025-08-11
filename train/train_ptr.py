@@ -4,6 +4,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 import yaml
 import argparse
+import torch
 
 from torch_geometric.loader import DataLoader
 from data.dataset import BudjBimWallMeshDataset
@@ -20,47 +21,66 @@ if __name__ == '__main__':
                         default='cfg/bbw/ptr_feature.yaml',
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
-                        default='data/BudjBimWall',
+                        default='data/BBW',
                         help='path to dataset folder')
+    parser.add_argument('--path', type=str,  metavar='N',
+                        default=None,
+                        help='path to save model')
     args = parser.parse_args()
     
     
     with open(args.cfg, 'r') as f:
-        cfg = yaml.safe_load(f)    
+        cfg = yaml.safe_load(f)   
+         
+        if args.path is not None:
+            cfg['path'] = args.path
         
         print("\nLoaded Configuration:\n" + "="*25)
         print(yaml.dump(cfg, sort_keys=False, default_flow_style=False))
-        print("="*25 + "\n")
+        print("="*25 + "\n") 
         
-        train_set = BudjBimWallMeshDataset(root=args.root, split='train')
-        val_set = BudjBimWallMeshDataset(root=args.root, split='val')
-        test_set = BudjBimWallMeshDataset(root=args.root, split='test')
+        areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
+        for area in areas:
+            trainer = Trainer(cfg=cfg)
             
-        train_loader = DataLoader(train_set, 
-                                  batch_size=cfg['batch'], 
-                                  shuffle=True, 
-                                  num_workers=cfg['workers'])   
-        val_loader = DataLoader(val_set, 
-                                batch_size=cfg['batch'], 
-                                shuffle=False, 
-                                num_workers=cfg['workers'])
-        test_loader = DataLoader(test_set, 
-                                 batch_size=cfg['batch'], 
-                                 shuffle=False, 
-                                 num_workers=cfg['workers'])
+            train_set = BudjBimWallMeshDataset(root=args.root, split='train', test_area=area)
+            val_set = BudjBimWallMeshDataset(root=args.root, split='val', test_area=area)
+            test_set = BudjBimWallMeshDataset(root=args.root, split='test', test_area=area)
+            
+            train_loader = DataLoader(train_set, 
+                                      batch_size=cfg['batch'], 
+                                      shuffle=True, 
+                                      pin_memory=True,
+                                      num_workers=cfg['workers'])   
+            val_loader = DataLoader(val_set, 
+                                    batch_size=cfg['batch'], 
+                                    shuffle=False, 
+                                    pin_memory=True,
+                                    num_workers=cfg['workers'])
+            test_loader = DataLoader(test_set, 
+                                    batch_size=cfg['batch'], 
+                                    shuffle=False, 
+                                    pin_memory=True,
+                                    num_workers=cfg['workers'])        
         
-        model = PointTransformer(cfg['in_channels'], 
-                                 cfg['out_channels'], 
-                                 cfg['hid_channels'], 
-                                 cfg['pool_ratio'], 
-                                 cfg['num_nbrs'])
+            model = PointTransformer(cfg['in_channels'], 
+                                     cfg['out_channels'], 
+                                     cfg['hid_channels'], 
+                                     cfg['pool_ratio'], 
+                                     cfg['num_nbrs'])
 
-        trainer = Trainer(cfg=cfg) 
-        trainer.fit(model, 
-                    criterion=BCELogitsSmoothingLoss(),
-                    train_loader=train_loader, 
-                    val_loader=val_loader)
-        trainer.eval(model, 
-                     test_loader, 
-                     ckpt=f"epoch{cfg['epoch']}.pth",
-                     verbose=True)
+            trainer.fit(model, 
+                        criterion=BCELogitsSmoothingLoss(),
+                        train_loader=train_loader, 
+                        val_loader=val_loader,
+                        optimizer=torch.optim.SGD(
+                            model.parameters(),
+                            lr=cfg['lr'],
+                            momentum=0.9,
+                            weight_decay=cfg['w_decay']
+                        )
+            )
+            trainer.eval(model, 
+                        test_loader, 
+                        ckpt=f"epoch{cfg['epoch']}.pth",
+                        verbose=True)

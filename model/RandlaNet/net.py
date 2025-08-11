@@ -170,9 +170,8 @@ class RandlaNet(torch.nn.Module):
         self.fc_classif = Linear(32, num_classes)
 
     def forward(self, data):
-        pos, x, batch, ptr = data.pos, data.x, \
-                             data.batch, data.ptr
-        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        pos, batch, ptr = data.pos, data.batch, data.ptr
+        x = torch.cat([data.rgb, data.normals, pos], dim=-1)
 
         b1_out = self.block1(self.fc0(x), pos, batch)
         b1_out_decimated, ptr1 = decimate(b1_out, ptr, self.decimation)
