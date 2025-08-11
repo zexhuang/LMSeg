@@ -38,8 +38,7 @@ class DeeperGCN(torch.nn.Module):
         self.lin = Linear(hidden_channels, out_channels)
 
     def forward(self, data):
-        pos, x = data.pos, data.x
-        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        x = torch.cat([data.rgb, data.normals, data.pos], dim=-1)
         
         edge_index = data.edge_index
         edge_attr = x[edge_index[1]] - x[edge_index[0]]

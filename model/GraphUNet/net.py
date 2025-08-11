@@ -87,8 +87,8 @@ class GraphUNet(torch.nn.Module):
 
     def forward(self, data: Data) -> Tensor:
         """"""  # noqa: D419
-        pos, batch, x = data.pos, data.batch, data.x
-        x = pos.detach().clone() if x is None else torch.cat([x, pos.detach().clone()], dim=-1)
+        pos, batch = data.pos, data.batch
+        x = torch.cat([data.rgb, data.normals, pos], dim=-1)
          
         edge_index = data.edge_index
         
