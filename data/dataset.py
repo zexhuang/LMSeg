@@ -566,13 +566,15 @@ class BBWPointDataset(BudjBimWallMeshDataset):
     def __init__(self, 
                  root: Union[Path, str],
                  split: str = 'train', 
+                 test_area: str = 'area4',
+                 train_size: float = 0.8,
                  first_subsampling_dl = 0.02,
                  config = None,
                  classification = False,
                  class_choice = None,
                  transform = None, 
                  pre_transform = None):
-        super().__init__(root, split, transform, pre_transform)
+        super().__init__(root, split, test_area, train_size, transform, pre_transform)
         self.first_subsampling_dl = first_subsampling_dl
         self.config = config
         self.classification = classification
@@ -591,13 +593,13 @@ class BBWPointDataset(BudjBimWallMeshDataset):
         return data
     
     def get(self, idx):        
-        data = torch.load(self.data_list[idx], weights_only=False)   
+        data = torch.load(self.data_files[idx], weights_only=False)   
         
         if self.transform:
             data = self.transform(data)
             
         point_set = data.pos.detach().cpu().numpy()
-        point_features = point_features.detach().cpu().numpy() if point_features != None else point_features
+        point_features = torch.cat([data.rgb, data.normals], dim=-1)
         seg = data.y.detach().cpu().numpy()
             
         features = np.ones([point_set.shape[0], 1])    

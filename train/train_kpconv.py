@@ -1,10 +1,11 @@
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-sys.path.append('/data/proj/LMSeg/KPConv')
+sys.path.append(str(Path.cwd() / "KPConv"))
 
 import yaml
 import argparse
+import torch
 import torch_geometric.transforms as T
 from torchmetrics.classification import BinaryF1Score, BinaryJaccardIndex
 
@@ -18,6 +19,7 @@ from data.dataset import BBWPointDataset
 
 
 class KPFCNNConfig(Config):    
+    # https://github.com/XuyangBai/KPConv.pytorch#
     # model
     architecture = [
                     "simple",
@@ -63,8 +65,11 @@ if __name__ == '__main__':
                         default='cfg/bbw/kpconv_feature.yaml',
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
-                        default='data/BudjBimWall',
+                        default='data/BBW',
                         help='path to dataset folder')
+    parser.add_argument('--path', type=str,  metavar='N',
+                        default=None,
+                        help='path to save model')
     args = parser.parse_args()
     
     with open(args.cfg, 'r') as f:
@@ -81,39 +86,47 @@ if __name__ == '__main__':
         kp_config.num_points = cfg['num_points']
         kp_config.train_batch_size = cfg['batch']
         kp_config.test_batch_size = cfg['batch']
-    
-        train_set = BBWPointDataset(root=args.root, split='train', config=kp_config)
-        train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
         
-        val_set = BBWPointDataset(root=args.root, split='val', config=kp_config)
-        val_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+        areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
+        for area in areas:
+            train_set = BBWPointDataset(root=args.root, split='train', test_area=area, config=kp_config)
+            train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+            
+            val_set = BBWPointDataset(root=args.root, split='val', test_area=area, config=kp_config)
+            val_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+            
+            test_set = BBWPointDataset(root=args.root, split='test', test_area=area, config=kp_config)
+            test_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
         
-        test_set = BBWPointDataset(root=args.root, split='test', config=kp_config)
-        test_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
-    
-        train_loader = get_dataloader(train_set, 
-                                      batch_size=cfg['batch'], 
-                                      shuffle=True, 
-                                      num_workers=cfg['workers'])   
-        val_loader = get_dataloader(val_set, 
-                                    batch_size=cfg['batch'], 
-                                    shuffle=False, 
-                                    num_workers=cfg['workers'])
-        test_loader = get_dataloader(test_set, 
-                                     batch_size=cfg['batch'], 
-                                     shuffle=False, 
-                                     num_workers=cfg['workers'])
-        
-        model = KPFCNN(kp_config)
-        trainer = KPConvTrainer(cfg) 
-        
-        trainer.fit(model, 
-                    criterion=BCELogitsSmoothingLoss(),
-                    train_loader=train_loader, 
-                    val_loader=val_loader)
-        trainer.eval(model, 
-                     test_loader, 
-                     metric={'f1': BinaryF1Score(), 
-                             'mIoU': BinaryJaccardIndex()},
-                     ckpt=f"epoch{cfg['epoch']}.pth",
-                     verbose=True)
+            train_loader = get_dataloader(train_set, 
+                                          batch_size=cfg['batch'], 
+                                          shuffle=True, 
+                                          num_workers=cfg['workers'])   
+            val_loader = get_dataloader(val_set, 
+                                        batch_size=cfg['batch'], 
+                                        shuffle=False, 
+                                        num_workers=cfg['workers'])
+            test_loader = get_dataloader(test_set, 
+                                        batch_size=cfg['batch'], 
+                                        shuffle=False, 
+                                        num_workers=cfg['workers'])
+            
+            model = KPFCNN(kp_config)
+            
+            trainer = KPConvTrainer(cfg) 
+            trainer.fit(model, 
+                        criterion=BCELogitsSmoothingLoss(),
+                        train_loader=train_loader, 
+                        val_loader=val_loader,
+                        optimizer=torch.optim.SGD(
+                            model.parameters(),
+                            lr=cfg['lr'],
+                            momentum=0.9,
+                            weight_decay=cfg['w_decay']
+                        )
+            )
+            trainer.eval(model, 
+                         test_loader, 
+                         metric={'f1': BinaryF1Score(), 'mIoU': BinaryJaccardIndex()},
+                         ckpt=f"epoch{cfg['epoch']}.pth",
+                         verbose=True)
