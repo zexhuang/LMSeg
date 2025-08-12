@@ -82,7 +82,7 @@ if __name__ == '__main__':
                         )
             )
             trainer.eval(model, 
-                        test_loader, 
-                        metric={'f1': BinaryF1Score(), 'mIoU': BinaryJaccardIndex()},
-                        ckpt=f"epoch{cfg['epoch']}.pth",
-                        verbose=True)
+                         test_loader, 
+                         metric={'f1': BinaryF1Score(), 'mIoU': BinaryJaccardIndex()},
+                         ckpt=f"epoch{cfg['epoch']}.pth",
+                         verbose=True)

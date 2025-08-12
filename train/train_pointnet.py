@@ -69,7 +69,7 @@ if __name__ == '__main__':
         
             model = PointNetSeg(cfg['in_channels'], 
                                 cfg['out_channels'],
-                                get_trans_feat=False)
+                                get_trans_feat=True)
                     
             trainer = Trainer(cfg=cfg)
             trainer.path = cfg['path'] + f'/{area}'
@@ -77,8 +77,9 @@ if __name__ == '__main__':
                         criterion=BCERegLoss(),
                         train_loader=train_loader, 
                         val_loader=val_loader)
+            model.get_trans_feat = False
             trainer.eval(model, 
-                        test_loader, 
-                        metric={'f1': BinaryF1Score(), 'mIoU': BinaryJaccardIndex()},
-                        ckpt=f"epoch{cfg['epoch']}.pth",
-                        verbose=True)
+                         test_loader, 
+                         metric={'f1': BinaryF1Score(), 'mIoU': BinaryJaccardIndex()},
+                         ckpt=f"epoch{cfg['epoch']}.pth",
+                         verbose=True)
