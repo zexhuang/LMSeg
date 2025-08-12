@@ -69,7 +69,7 @@ if __name__ == '__main__':
         
             model = PointNetSeg(cfg['in_channels'], 
                                 cfg['out_channels'],
-                                get_trans_feat=True)
+                                get_trans_feat=False)
                     
             trainer = Trainer(cfg=cfg)
             trainer.path = cfg['path'] + f'/{area}'
