@@ -75,6 +75,9 @@ if __name__ == '__main__':
     with open(args.cfg, 'r') as f:
         cfg = yaml.safe_load(f)    
         
+        if args.path is not None:
+            cfg['path'] = args.path
+        
         print("\nLoaded Configuration:\n" + "="*25)
         print(yaml.dump(cfg, sort_keys=False, default_flow_style=False))
         print("="*25 + "\n")
