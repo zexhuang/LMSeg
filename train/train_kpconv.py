@@ -21,16 +21,19 @@ from data.dataset import BBWPointDataset
 class KPFCNNConfig(Config):    
     # https://github.com/XuyangBai/KPConv.pytorch#
     # model
-    architecture = [
-                    "simple",
-                    "resnetb",
-                    "resnetb_strided",
-                    "resnetb",
-                    "resnetb_strided",
+    architecture = ['simple',
                     'resnetb',
                     'resnetb_strided',
                     'resnetb',
+                    'resnetb',
                     'resnetb_strided',
+                    'resnetb',
+                    'resnetb',
+                    'resnetb_strided',
+                    'resnetb',
+                    'resnetb',
+                    'resnetb_strided',
+                    'resnetb',
                     'resnetb',
                     'nearest_upsample',
                     'unary',
@@ -39,8 +42,7 @@ class KPFCNNConfig(Config):
                     'nearest_upsample',
                     'unary',
                     'nearest_upsample',
-                    'unary'
-                ]
+                    'unary']
     dropout = 0.5
     resume = None
     use_batch_norm = True
@@ -90,7 +92,7 @@ if __name__ == '__main__':
         kp_config.train_batch_size = cfg['batch']
         kp_config.test_batch_size = cfg['batch']
         
-        areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
+        areas = ['area2']
         for area in areas:
             train_set = BBWPointDataset(root=args.root, split='train', test_area=area, config=kp_config)
             train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
