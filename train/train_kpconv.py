@@ -88,7 +88,7 @@ if __name__ == '__main__':
         kp_config.train_batch_size = cfg['batch']
         kp_config.test_batch_size = cfg['batch']
         
-        areas = ['area1']
+        areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
         for area in areas:
             train_set = BBWPointDataset(root=args.root, split='train', test_area=area, config=kp_config)
             train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
