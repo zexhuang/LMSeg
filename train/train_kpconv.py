@@ -25,16 +25,12 @@ class KPFCNNConfig(Config):
                     'resnetb',
                     'resnetb_strided',
                     'resnetb',
-                    'resnetb',
                     'resnetb_strided',
-                    'resnetb',
-                    'resnetb',
-                    'resnetb_strided',
-                    'resnetb',
-                    'resnetb',
-                    'resnetb_strided',
-                    'resnetb',
-                    'resnetb',
+                    'resnetb_deformable',
+                    'resnetb_deformable_strided',
+                    'resnetb_deformable',
+                    'resnetb_deformable_strided',
+                    'resnetb_deformable',
                     'nearest_upsample',
                     'unary',
                     'nearest_upsample',
@@ -92,7 +88,7 @@ if __name__ == '__main__':
         kp_config.train_batch_size = cfg['batch']
         kp_config.test_batch_size = cfg['batch']
         
-        areas = ['area2']
+        areas = ['area1']
         for area in areas:
             train_set = BBWPointDataset(root=args.root, split='train', test_area=area, config=kp_config)
             train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
@@ -127,7 +123,7 @@ if __name__ == '__main__':
                         optimizer=torch.optim.SGD(
                             model.parameters(),
                             lr=cfg['lr'],
-                            momentum=0.9,
+                            momentum=0.98,
                             weight_decay=cfg['w_decay']
                         )
             )
