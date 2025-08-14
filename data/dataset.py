@@ -578,15 +578,6 @@ class BBWPointDataset(BudjBimWallMeshDataset):
         self.first_subsampling_dl = first_subsampling_dl
         self.config = config
         self.classification = classification
-        self.cat2id = {}
-        self.seg_classes = {}
-        
-        # if a subset of classes is specified.
-        if class_choice is not None:
-            self.cat2id = {k: v for k, v in self.cat2id.items() if k in class_choice}
-        self.id2cat = {v: k for k, v in self.cat2id.items()}
-        
-        self.classes = dict(zip(sorted(self.cat2id), range(len(self.cat2id))))
         
     def __getitem__(self, idx):
         data = self.get(self.indices()[idx])
