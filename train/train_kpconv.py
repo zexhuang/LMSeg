@@ -21,16 +21,17 @@ from data.dataset import BBWPointDataset
 class KPFCNNConfig(Config):    
     # https://github.com/XuyangBai/KPConv.pytorch#
     # model
-    architecture = ['simple',
+    architecture = [
+                    "simple",
+                    "resnetb",
+                    "resnetb_strided",
+                    "resnetb",
+                    "resnetb_strided",
                     'resnetb',
                     'resnetb_strided',
                     'resnetb',
                     'resnetb_strided',
-                    'resnetb_deformable',
-                    'resnetb_deformable_strided',
-                    'resnetb_deformable',
-                    'resnetb_deformable_strided',
-                    'resnetb_deformable',
+                    'resnetb',
                     'nearest_upsample',
                     'unary',
                     'nearest_upsample',
@@ -38,7 +39,8 @@ class KPFCNNConfig(Config):
                     'nearest_upsample',
                     'unary',
                     'nearest_upsample',
-                    'unary']
+                    'unary'
+                ]
     dropout = 0.5
     resume = None
     use_batch_norm = True
@@ -91,13 +93,18 @@ if __name__ == '__main__':
         areas = ['area1', 'area2', 'area3', 'area4', 'area5', 'area6']
         for area in areas:
             train_set = BBWPointDataset(root=args.root, split='train', test_area=area, config=kp_config)
-            train_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+            train_set.transform = T.Compose([T.RandomRotate(1, axis=0),
+                                             T.RandomRotate(1, axis=1),
+                                             T.RandomRotate(180, axis=2),
+                                             T.RandomJitter(0.005),
+                                             T.NormalizeScale(),
+                                             T.FixedPoints(cfg['num_points'])])
             
             val_set = BBWPointDataset(root=args.root, split='val', test_area=area, config=kp_config)
-            val_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+            val_set.transform = T.Compose([T.NormalizeScale(), T.FixedPoints(cfg['num_points'])])
             
             test_set = BBWPointDataset(root=args.root, split='test', test_area=area, config=kp_config)
-            test_set.transform.transforms.append(T.FixedPoints(cfg['num_points']))
+            test_set.transform = T.Compose([T.NormalizeScale(), T.FixedPoints(cfg['num_points'])])
         
             train_loader = get_dataloader(train_set, 
                                           batch_size=cfg['batch'], 
