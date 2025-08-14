@@ -51,12 +51,6 @@ class KPFCNNConfig(Config):
     KP_influence = 'linear'
     KP_extent = 1.2
     convolution_mode = 'sum'
-    
-    def load(self, path):
-        return
-    
-    def save(self, path):
-        return
 
 
 if __name__ == '__main__':
