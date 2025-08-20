@@ -63,7 +63,7 @@ class BaseTrainer:
     def _load_ckpt(self, ckpt_name, device):
         print(ckpt_name)
         ckpt_path = Path(self.path) / 'ckpt' / ckpt_name
-        return torch.load(ckpt_path, map_location=device, weights_only=True)
+        return torch.load(ckpt_path, map_location=device, weights_only=False)
 
 
 class Trainer(BaseTrainer):
