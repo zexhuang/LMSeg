@@ -103,6 +103,9 @@ save/bbw/bbw_lmseg_feature/ckpt/epoch{}.pth
 ![alt text](figs/bbw_preds.png)
 <p align="center"> Qualitative performance of LMSeg on Budj Bim Wall dataset.</p>
 
+## License
+The data in this repository is licensed under the [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+
 ## Citation
 
 ```text
