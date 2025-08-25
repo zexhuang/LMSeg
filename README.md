@@ -86,7 +86,7 @@ python3 train/train_lmseg_sum.py --cfg=cfg/sum/lmseg_feature.yaml
 or
 
 ```bash
-python3 train/train_lmseg.py --cfg=cfg/bbw/lmseg_feature.yaml
+python3 train/train_lmseg_bbw.py --cfg=cfg/bbw/lmseg_feature.yaml
 ```
 
 ## **Evaluation**
