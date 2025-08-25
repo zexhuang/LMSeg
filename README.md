@@ -7,7 +7,15 @@ Semantic segmentation of large-scale 3D landscape meshes is critical for geospat
 ## Architecture
 
 ![alt text](figs/architecture.png)
-Overall architecture of LMSeg. (a). Input mesh is converted into barycentric dual graph with mesh texture and face normal features. (b). LMSeg encoder consists of random node sub-sampling, HGA+, edge pooling and LGA+ modules for hierarchical and local feature learning. A residual MLP takes concatenated LGA+ and HGA+ features as inputs and updates graph node features. (c). LMSeg decoder consists of feature propagation layers, which progressively up-sample the size of deep encoder features back to the original input size. $\texttt{N}$ denotes the number of input nodes of barycentric dual graph, and $\texttt{C}$ refers to the input node feature dimensions.
+(a) The input triangular mesh is converted into a **barycentric dual graph**, where each node corresponds to a triangular face and edges capture 1-ring face adjacency. Node features consist of RGB values and surface normals from both faces and vertices, each processed by a **Mesh Feature Encoder** into a shared latent space.  
+
+(b) The **encoder** alternates two complementary modules: **HGA+** (Hierarchical Geometry Aggregation+) and **LGA+** (Local Geometry Aggregation+), separated by random node sub-sampling and edge similarity pooling. **HGA+** operates on a $k$-nearest neighbor graph linking downsampled nodes to their neighbors in the full-resolution mesh, capturing hierarchical, long-range, and multi-scale structural context. **LGA+** operates on locally pooled geodesic neighborhoods, refining features using high-frequency, fine-scale variations to preserve geometric detail. Outputs from HGA+ and LGA+ are concatenated and refined by a residual multilayer perceptron (**ResMLP**). Each stage reduces node count while increasing feature dimensionality.  
+
+(c) The **decoder** progressively upsamples features back to the original resolution using inverse-distance interpolation, skip connections, and MLP refinement, producing dense per-face semantic predictions.  
+
+(d) Illustration of the hierarchical and local pooling strategy: random node sub-sampling reduces graph size efficiently, while edge similarity pooling restores meaningful local neighborhoods. HGA+ operates on hierarchical neighborhoods defined in the original geometry, and LGA+ operates on local geodesic neighborhoods, ensuring explicit multi-scale feature fusion.  
+
+Here, $N$ denotes the number of nodes in the barycentric dual graph, $D$ the feature dimensionality, and $K$ the number of semantic classes.
 
 ## **Installation**
 
