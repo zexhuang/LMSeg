@@ -19,7 +19,15 @@ Here, $N$ denotes the number of nodes in the barycentric dual graph, $D$ the fea
 
 ## **Installation**
 
-Conda environment to run the code has exported to **requirements.yaml**.
+To set up the environment, use the provided conda **requirements.yaml** file:
+
+```text
+# Create a new Conda environment from the requirements file
+conda env create -f requirements.yaml
+
+# Activate the environment
+conda activate lmseg
+```
 
 ## **Dataset**
 
@@ -60,15 +68,15 @@ data
 
 ## **Budj Bim Wall Dataset**
 
-Budj Bim Wall (BBW) dataset is a lidar-scanned point-cloud dataset of the UNESCO World Heritage cultural landscape covered by the Budj Bim National Park in southwest Victoria, Australia. This is one of the areas with the highest density of European historic dry-stone walls in Australia. The dataset was collected in 2020 by the Department of Environment, Land, Water and Planning in Victoria, Australia for the Gunditj Mirring Traditional Owners Corporation.
+BudjBimWall dataset is a lidar-scanned point-cloud dataset of the UNESCO World Heritage cultural landscape covered by the Budj Bim National Park in southwest Victoria, Australia. This is one of the areas with the highest density of European historic dry-stone walls in Australia. The dataset was collected in 2020 by the Department of Environment, Land, Water and Planning in Victoria, Australia for the Gunditj Mirring Traditional Owners Corporation.
 
 ![alt text](figs/budjbim_bev.jpeg)
 <p align="center"> The entire Budj Bim landscape (301 km^2 area) collected by aerial lidar point clouds, containing 33 billion points.</p>
 
-The BBW dataset is a subset of the full dataset, capturing the northern part of the data. It is spatially divided into six equal, rectangular areas. Each tile in BBW dataset is a textured landscape mesh of 400$m^2$ map area (with face density of ~45 faces/m$^2$) semi-manually annotated into binary semantic labels (wall vs. other terrain). We adopt a six-fold *leave-one-area-out* cross-validation, testing on one held-out geographic area per fold while training and validating (80/20 split) on the remaining five. This ensures coverage of diverse terrain types and provides a statistically robust estimate of model performance in unseen spatial regions.
+The BBW dataset is a subset of the full landscape dataset, capturing the northern part of the data. It is spatially divided into six equal, rectangular areas. Each tile in BBW dataset is a textured landscape mesh of 400$m^2$ map area (with face density of ~45 faces/m$^2$) semi-manually annotated into binary semantic labels (wall vs. other terrain). We adopt a six-fold *leave-one-area-out* cross-validation, testing on one held-out geographic area per fold while training and validating (80/20 split) on the remaining five. This ensures coverage of diverse terrain types and provides a statistically robust estimate of model performance in unseen spatial regions.
 
 ![alt text](figs/bbw_map.png)
-<p align="center"> Spatial partitioning of the *BudjBimArea* dataset. Orange lines indicate annotated European historic dry-stone walls near Tae Rak (Lake Condah), Victoria, Australia. The number of data samples per area is as follows: Area 1 - 107, Area 2 - 647, Area 3 - 625, Area 4 - 716, Area 5 - 893, and Area 6 - 1008.</p>
+<p align="center"> Spatial partitioning of the **BudjBimWall** dataset. Orange lines indicate annotated European historic dry-stone walls near Tae Rak (Lake Condah), Victoria, Australia. The number of data samples per area is as follows: Area 1 - 107, Area 2 - 647, Area 3 - 625, Area 4 - 716, Area 5 - 893, and Area 6 - 1008.</p>
 
 The textured mesh tiles of BBW dataset are constructed from raw lidar tiles using a reproducible pipeline. Point clouds are clipped to area boundaries, subdivided into processing grids, and filtered with a cloth simulation filter (CSF; resolution 0.05m, rigidness 1, slope smoothing enabled) to isolate ground points. Ground surfaces are then triangulated in 2D, elevations restored, and meshes simplified to reduce redundancy. Subsequent cleaning removes non-manifold edges, degenerate faces, and unreferenced vertices; merges vertices within tolerance; fills small holes; and reorients normals. These steps explicitly address mesh noise and missing-face artefacts, ensuring geometric integrity for downstream segmentation. Finally, RGB texture and binary wall/terrain masks are mapped to mesh faces by sampling centroids from orthophotos and raster masks, producing enriched meshes with per-face color and labels.
 
@@ -76,6 +84,11 @@ For GT labels, given the large area and high point density of the Budj Bim lands
 
 ![alt text](figs/budjbim_annotated_points.jpeg)
 <p align="center"> The annotated stone walls (in lidar point clouds) of BBW dataset.</p>
+
+
+### **Dataset Download**
+
+[**BBW dataset**](https://mediaflux.researchsoftware.unimelb.edu.au:443/mflux/share.mfjp?_token=HCHeyv8c5SWFWu8sJpKj1128312185&browser=true&filename=BBW%20dataset.zip)
 
 ## **Model Training**
 
@@ -89,19 +102,27 @@ or
 python3 train/train_lmseg_bbw.py --cfg=cfg/bbw/lmseg_feature.yaml
 ```
 
-## **Evaluation**
+## **Model Checkpoints**
 
-Pre-trained models are located at:
+Pretrained model checkpoints are available for download:
+
+* [**SUM checkpoint**](https://mediaflux.researchsoftware.unimelb.edu.au:443/mflux/share.mfjp?_token=Lr1N3BlBZCUB4534CouA1128312183&browser=true&filename=sum.zip)
+* [**BBW checkpoint**](https://mediaflux.researchsoftware.unimelb.edu.au:443/mflux/share.mfjp?_token=jCTC2QRJMVZu7nuPVjqJ1128312181&browser=true&filename=bbw.zip)
+  
+After downloading, the model checkpoints can be found at:
 
 ```bash
-save/sum/lmseg_feature/ckpt/epoch{}.pth
+# For the SUM dataset
+./sum/lmseg_feature/ckpt/epoch{}.pth
 ```
 
-or
+and
 
 ```bash
-save/bbw/bbw_lmseg_feature/ckpt/epoch{}.pth
+# For the BBW dataset
+./bbw/lmseg_feature/area1-6/ckpt/epoch{}.pth
 ```
+
 
 ## Results
 
