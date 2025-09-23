@@ -561,6 +561,195 @@ class SUMDataset(Dataset):
         data = torch.load(self.data_list[idx], weights_only=False)           
         return data
     
+
+class H3DDataset(Dataset):
+    def __init__(self, 
+                root: Union[Path, str], 
+                split: str = 'train', 
+                epoch: str = 'Epoch_March2018',
+                transform = None, 
+                pre_transform = None):
+        self.root = Path(root) / epoch 
+        self.root.mkdir(parents=True, exist_ok=True)
+        
+        super().__init__(self.root, transform, pre_transform)
+        
+        assert split in ['train', 'val', 'test']
+        self.split = split
+        
+        self.processed_mesh_list = sorted(list((Path(self.processed_dir) / split).glob('*.ply')))
+        self.data_list = sorted(list((Path(self.processed_dir) / split).glob('*.pt')))
+        
+        if transform:
+            self.transform=transform
+        elif split == 'train': 
+            self.transform = self.get_transform['train']
+        elif split in ('test', 'val'):
+            self.transform = self.get_transform['test']
+            
+    @property
+    def raw_file_names(self):
+        return ['train', 'val', 'test']
+    
+    @property
+    def processed_file_names(self):
+        return ['train', 'val', 'test']
+    
+    @property
+    def mask_dict(self):
+        return {
+            '[178.0, 203.0, 47.0, 255.0]': 0,  # Low Vegetation
+            '[177.0, 202.0, 47.0, 255.0]': 0,
+            '[183.0, 179.0, 170.0, 255.0]': 1, # Impervious Surface
+            '[182.0, 177.0, 170.0, 255.0]': 1,
+            '[32.0, 151.0, 163.0, 255.0]': 2,  # Vehicle
+            '[31.0, 151.0, 163.0, 255.0]': 2,
+            '[168.0, 33.0, 107.0, 255.0]': 3,  # Urban Furniture
+            '[255.0, 122.0, 89.0, 255.0]': 4,  # Roof
+            '[255.0, 121.0, 89.0, 255.0]': 4,
+            '[255.0, 215.0, 136.0, 255.0]': 5, # Facade
+            '[255.0, 214.0, 135.0, 255.0]': 5,
+            '[89.0, 125.0, 53.0, 255.0]': 6,   # Shrub
+            '[89.0, 125.0, 52.0, 255.0]': 6,   
+            '[89.0, 124.0, 52.0, 255.0]': 6,  
+            '[0.0, 128.0, 65.0, 255.0]': 7,    # Tree
+            '[170.0, 85.0, 0.0, 255.0]': 8,    # Soil/Gravel
+            '[170.0, 84.0, 0.0, 255.0]': 8,
+            '[252.0, 225.0, 5.0, 255.0]': 9,   # Vertical Surface
+            '[251.0, 225.0, 5.0, 255.0]': 9,
+            '[128.0, 0.0, 0.0, 255.0]': 10,    # Chimney/Antenna
+            '[0.0, 0.0, 0.0, 255.0]': 11,      # Unlabeled
+        }
+        
+    @property
+    def rgba_dict(self):
+        return {
+            0:  [178.0, 203.0, 47.0, 255.0],   # Low Vegetation
+            1:  [183.0, 179.0, 170.0, 255.0],  # Impervious Surface
+            2:  [32.0, 151.0, 163.0, 255.0],   # Vehicle
+            3:  [168.0, 33.0, 107.0, 255.0],   # Urban Furniture
+            4:  [255.0, 122.0, 89.0, 255.0],   # Roof
+            5:  [255.0, 215.0, 136.0, 255.0],  # Facade
+            6:  [89.0, 125.0, 53.0, 255.0],    # Shrub
+            7:  [0.0, 128.0, 65.0, 255.0],     # Tree
+            8:  [170.0, 85.0, 0.0, 255.0],     # Soil/Gravel
+            9:  [252.0, 225.0, 5.0, 255.0],    # Vertical Surface
+            10: [128.0, 0.0, 0.0, 255.0],      # Chimney/Antenna
+            11: [0.0, 0.0, 0.0, 255.0],        # Unlabeled
+        }
+                    
+    def process(self):        
+        for id, folder in enumerate(self.processed_file_names):
+            Path(self.processed_paths[id]).mkdir(parents=True, exist_ok=True)
+            
+            base_path = Path(self.root) / "Mesh" / "per-tile" / folder
+            labeled_objs = sorted(base_path.rglob("*_labeled.obj"))
+            raw_objs = sorted([f for f in base_path.rglob("*.obj") if not f.name.endswith("_labeled.obj")])
+
+            for robj, lobj in zip(raw_objs, labeled_objs):
+                rms = pml.MeshSet()
+                rms.load_new_mesh(str(robj))
+                rms.set_current_mesh(0)
+                rms.current_mesh().compact()
+
+                rms.transfer_texture_to_color_per_vertex()
+                rms.compute_color_transfer_vertex_to_face()
+
+                faces = rms.current_mesh().face_matrix()
+                vertices = rms.current_mesh().vertex_matrix()
+                normals = rms.current_mesh().face_normal_matrix()
+
+                v_color = rms.current_mesh().vertex_color_matrix()
+                v_color = (v_color * 255.0).astype(np.uint8)
+                    
+                f_color = rms.current_mesh().face_color_matrix()
+                f_color = (f_color * 255.0).astype(np.uint8)
+
+                lms = pml.MeshSet()
+                lms.load_new_mesh(str(lobj))
+                lms.set_current_mesh(0)
+                lms.current_mesh().compact()
+
+                mask_color = lms.current_mesh().face_color_matrix()
+                mask = np.array([self.mask_dict[str(rgba)] for rgba in (mask_color * 255.0).tolist()], dtype=np.uint8)
+                
+                face_attr = {'mask': mask,
+                             'red': mask_color[:,0].astype(np.uint8),
+                             'green': mask_color[:,1].astype(np.uint8),
+                             'blue': mask_color[:,2].astype(np.uint8),
+                             'alpha': mask_color[:,3].astype(np.uint8),
+                             'face_red': f_color[:,0].astype(np.uint8),
+                             'face_green': f_color[:,1].astype(np.uint8),
+                             'face_blue': f_color[:,2].astype(np.uint8),
+                             'face_alpha': f_color[:,3].astype(np.uint8)}
+                
+                plydata = trimesh.Trimesh(vertices=vertices, 
+                                          faces=faces, 
+                                          face_colors=f_color,
+                                          vertex_colors=v_color,
+                                          face_normals=normals, 
+                                          face_attributes=face_attr,
+                                          validate=True, 
+                                          process=True,
+                                          merge_norm=True,
+                                          merge_tex=True)
+                plydata.export(os.path.join(self.processed_paths[id], f'{robj.stem}.ply'))
+                
+                face = torch.from_numpy(np.asarray(plydata.faces, dtype=np.int64)).t()
+                face_rgba = torch.from_numpy(np.asarray(plydata.visual.face_colors, dtype=np.float32))
+                pos = torch.from_numpy(np.asarray(plydata.triangles_center, dtype=np.float32)) 
+                mask = torch.from_numpy(plydata.face_attributes['mask'].astype(np.int64))
+            
+                edge_index = torch.from_numpy(np.asarray(plydata.face_adjacency.copy(), dtype=np.int64)).t()
+                if not is_undirected(edge_index, num_nodes=pos.shape[0]):
+                    edge_index = to_undirected(edge_index, num_nodes=pos.shape[0])
+                edge_index = coalesce(edge_index, num_nodes=pos.shape[0])
+                edge_index, _ = remove_self_loops(edge_index)
+                    
+                data = Data(face=face, pos=pos, face_rgba=(face_rgba / 255.0).clamp(0, 1), edge_index=edge_index, y=mask) 
+                vertex_id = data.face.t().numpy().reshape(-1) 
+                # mesh normals 
+                v_normals = np.asarray(plydata.vertex_normals, dtype=np.float32)[vertex_id].reshape(-1, 3, 3)
+                f_normals = np.asarray(plydata.face_normals, dtype=np.float32)
+                data.normals = torch.from_numpy(np.concatenate([v_normals[:, 0],
+                                                                v_normals[:, 1],
+                                                                v_normals[:, 2],
+                                                                f_normals[:,]], axis=1)).clamp(-1, 1)
+                # mesh (RGB) colors  
+                v_rgba = np.asarray(plydata.visual.vertex_colors, dtype=np.float32)[vertex_id].reshape(-1, 3, 4)
+                f_rgba = np.asarray(plydata.visual.face_colors, dtype=np.float32)
+                data.rgb = torch.from_numpy(np.concatenate([(v_rgba[:, 0, 0:3] / 255.0),
+                                                            (v_rgba[:, 1, 0:3] / 255.0),
+                                                            (v_rgba[:, 2, 0:3] / 255.0),
+                                                            (f_rgba[:, 0:3] / 255.0)], axis=1)).clamp(0, 1)      
+                
+                if self.pre_filter is not None and not self.pre_filter(data):
+                    continue
+
+                if self.pre_transform is not None:
+                    data = self.pre_transform(data)
+                    
+                torch.save(data, os.path.join(self.processed_paths[id], f'{robj.stem}.pt'))
+        
+    @property
+    def get_transform(self) -> dict:
+        return {
+                'train': T.Compose([T.RandomRotate(1, axis=0),
+                                    T.RandomRotate(1, axis=1),
+                                    T.RandomRotate(180, axis=2),
+                                    T.RandomJitter(0.005),
+                                    T.NormalizeScale(),
+                                    ColorJitter()]),
+                'test': T.Compose([T.NormalizeScale()])
+                }
+        
+    def len(self):
+        return len(self.data_list) 
+    
+    def get(self, idx):        
+        data = torch.load(self.data_list[idx], weights_only=False)           
+        return data
+    
     
 class BBWPointDataset(BudjBimWallMeshDataset):
     def __init__(self, 
