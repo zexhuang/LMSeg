@@ -21,7 +21,7 @@ if __name__ == '__main__':
                         default='cfg/h3d/lmseg_feature.yaml',
                         help='path to config file')
     parser.add_argument('--root', type=str,  metavar='N',
-                        default='data/H3DBenchmark',
+                        default='data/H3DBenchmark/',
                         help='path to dataset folder')
     parser.add_argument('--path', type=str,  metavar='N',
                         default=None,
@@ -40,7 +40,7 @@ if __name__ == '__main__':
         print("="*25 + "\n")
         
         train_set = H3DDataset(root=args.root, split='train')
-        val_set = H3DDataset(root=args.root, split='validate')
+        val_set = H3DDataset(root=args.root, split='val')
                     
         train_loader = DataLoader(train_set, 
                                   batch_size=cfg['batch'], 
@@ -61,11 +61,11 @@ if __name__ == '__main__':
         if 'model' in cfg:
             if cfg['model'] == 'GA':
                 model = GANet(cfg['in_channels'], cfg['out_channels'],
-                            cfg['hid_channels'], 
-                            cfg['num_convs'], 
-                            cfg['pool_factors'], 
-                            cfg['num_nbrs'],
-                            cfg['num_block'])
+                              cfg['hid_channels'], 
+                              cfg['num_convs'], 
+                              cfg['pool_factors'], 
+                              cfg['num_nbrs'],
+                              cfg['num_block'])
             elif cfg['model'] == 'HGAP':
                 model = HGAPNet(cfg['in_channels'], cfg['out_channels'],
                                 cfg['hid_channels'], 
@@ -85,14 +85,14 @@ if __name__ == '__main__':
                                 cfg['beta'])
         else:
             model = LMSegNet(cfg['in_channels'], cfg['out_channels'],
-                                cfg['hid_channels'], 
-                                cfg['num_convs'], 
-                                cfg['pool_factors'], 
-                                cfg['num_nbrs'],
-                                cfg['num_block'],
-                                cfg['alpha'], 
-                                cfg['beta'],
-                                cfg['load_feature'])
+                             cfg['hid_channels'], 
+                             cfg['num_convs'], 
+                             cfg['pool_factors'], 
+                             cfg['num_nbrs'],
+                             cfg['num_block'],
+                             cfg['alpha'], 
+                             cfg['beta'],
+                             cfg['load_feature'])
         
         all_labels = torch.cat([data.y for data in train_set])
         class_freq = torch.bincount(all_labels, minlength=cfg['out_channels']).float()

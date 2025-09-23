@@ -62,11 +62,11 @@ if __name__ == '__main__':
         if 'model' in cfg:
             if cfg['model'] == 'GA':
                 model = GANet(cfg['in_channels'], cfg['out_channels'],
-                            cfg['hid_channels'], 
-                            cfg['num_convs'], 
-                            cfg['pool_factors'], 
-                            cfg['num_nbrs'],
-                            cfg['num_block'])
+                              cfg['hid_channels'], 
+                              cfg['num_convs'], 
+                              cfg['pool_factors'], 
+                              cfg['num_nbrs'],
+                              cfg['num_block'])
             elif cfg['model'] == 'HGAP':
                 model = HGAPNet(cfg['in_channels'], cfg['out_channels'],
                                 cfg['hid_channels'], 
@@ -86,14 +86,14 @@ if __name__ == '__main__':
                                 cfg['beta'])
         else:
             model = LMSegNet(cfg['in_channels'], cfg['out_channels'],
-                                cfg['hid_channels'], 
-                                cfg['num_convs'], 
-                                cfg['pool_factors'], 
-                                cfg['num_nbrs'],
-                                cfg['num_block'],
-                                cfg['alpha'], 
-                                cfg['beta'],
-                                cfg['load_feature'])
+                             cfg['hid_channels'], 
+                             cfg['num_convs'], 
+                             cfg['pool_factors'], 
+                             cfg['num_nbrs'],
+                             cfg['num_block'],
+                             cfg['alpha'], 
+                             cfg['beta'],
+                             cfg['load_feature'])
         
         all_labels = torch.cat([data.y for data in train_set])
         class_freq = torch.bincount(all_labels, minlength=cfg['out_channels']).float()
