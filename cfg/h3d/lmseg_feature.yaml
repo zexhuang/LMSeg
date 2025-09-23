@@ -17,14 +17,14 @@ pool_factors:
   - 3
   - 3
   - 3
-num_nbrs: 32
+num_nbrs: 20
 num_block: 1
 alpha: 0.001
 beta: 0.01
 
 in_channels: 3
 hid_channels: 72
-out_channels: 7
+out_channels: 12
 
 # save
 path: save/h3d/lmseg_feature
