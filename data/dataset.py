@@ -7,7 +7,7 @@ import pymeshlab as pml
 import torch
 import torch_geometric.transforms as T
 
-from typing import Union
+from typing import Union, List
 from pathlib import Path
 from tqdm import tqdm
 
@@ -16,6 +16,7 @@ from torch_geometric.data import Dataset, Data
 from torch_geometric.utils import (coalesce, remove_self_loops,
                                    to_undirected, is_undirected)
 from sklearn.model_selection import train_test_split
+from scipy.spatial import cKDTree
 
 
 class ColorJitter(nn.Module):
@@ -564,14 +565,15 @@ class SUMDataset(Dataset):
 
 class H3DDataset(Dataset):
     def __init__(self, 
-                root: Union[Path, str], 
-                split: str = 'train', 
-                epoch: str = 'Epoch_March2018',
-                transform = None, 
-                pre_transform = None):
-        self.root = Path(root) / epoch 
+                 root: Union[Path, str], 
+                 epoch: str = "Epoch_March2019",
+                 split: str = 'train', 
+                 transform = None, 
+                 pre_transform = None):
+        assert epoch in ['Epoch_March2019', 'Epoch_November2018', 'Epoch_March2018']
+        self.root = Path(root) / epoch
         self.root.mkdir(parents=True, exist_ok=True)
-        
+
         super().__init__(self.root, transform, pre_transform)
         
         assert split in ['train', 'val', 'test']
@@ -639,10 +641,13 @@ class H3DDataset(Dataset):
         }
                     
     def process(self):        
+        def _centroids(V, F):
+            return (V[F[:, 0]] + V[F[:, 1]] + V[F[:, 2]]) / 3.0
+
         for id, folder in enumerate(self.processed_file_names):
             Path(self.processed_paths[id]).mkdir(parents=True, exist_ok=True)
             
-            base_path = Path(self.root) / "Mesh" / "per-tile" / folder
+            base_path = Path(self.root) / "Mesh" / "per_tile" / folder
             labeled_objs = sorted(base_path.rglob("*_labeled.obj"))
             raw_objs = sorted([f for f in base_path.rglob("*.obj") if not f.name.endswith("_labeled.obj")])
 
@@ -651,17 +656,25 @@ class H3DDataset(Dataset):
                 rms.load_new_mesh(str(robj))
                 rms.set_current_mesh(0)
                 rms.current_mesh().compact()
-
-                rms.transfer_texture_to_color_per_vertex()
-                rms.compute_color_transfer_vertex_to_face()
+                rms.meshing_decimation_quadric_edge_collapse_with_texture(
+                    targetperc=0.75, 
+                    qualitythr=0.9,
+                    extratcoordw=1.0,
+                    preserveboundary=True,
+                    optimalplacement=True,
+                    preservenormal=True,
+                    planarquadric=True
+                )
 
                 faces = rms.current_mesh().face_matrix()
                 vertices = rms.current_mesh().vertex_matrix()
                 normals = rms.current_mesh().face_normal_matrix()
 
+                rms.transfer_texture_to_color_per_vertex()
                 v_color = rms.current_mesh().vertex_color_matrix()
                 v_color = (v_color * 255.0).astype(np.uint8)
                     
+                rms.compute_color_transfer_vertex_to_face()
                 f_color = rms.current_mesh().face_color_matrix()
                 f_color = (f_color * 255.0).astype(np.uint8)
 
@@ -669,9 +682,17 @@ class H3DDataset(Dataset):
                 lms.load_new_mesh(str(lobj))
                 lms.set_current_mesh(0)
                 lms.current_mesh().compact()
+                lms_f = lms.current_mesh().face_matrix()
+                lms_v = lms.current_mesh().vertex_matrix()
 
-                mask_color = lms.current_mesh().face_color_matrix()
-                mask = np.array([self.mask_dict[str(rgba)] for rgba in (mask_color * 255.0).tolist()], dtype=np.uint8)
+                lms_c = _centroids(lms_v, lms_f)     
+                rms_c = _centroids(vertices, faces)     
+                tree = cKDTree(lms_c)
+                _, idx = tree.query(rms_c, k=1)
+
+                lms_color = lms.current_mesh().face_color_matrix() * 255.0
+                mask_color = lms_color[idx]
+                mask = np.array([self.mask_dict[str(rgba)] for rgba in (mask_color).tolist()], dtype=np.uint8)
                 
                 face_attr = {'mask': mask,
                              'red': mask_color[:,0].astype(np.uint8),
@@ -693,6 +714,7 @@ class H3DDataset(Dataset):
                                           process=True,
                                           merge_norm=True,
                                           merge_tex=True)
+                plydata.fix_normals()
                 plydata.export(os.path.join(self.processed_paths[id], f'{robj.stem}.ply'))
                 
                 face = torch.from_numpy(np.asarray(plydata.faces, dtype=np.int64)).t()
@@ -734,12 +756,9 @@ class H3DDataset(Dataset):
     @property
     def get_transform(self) -> dict:
         return {
-                'train': T.Compose([T.RandomRotate(1, axis=0),
-                                    T.RandomRotate(1, axis=1),
-                                    T.RandomRotate(180, axis=2),
-                                    T.RandomJitter(0.005),
-                                    T.NormalizeScale(),
-                                    ColorJitter()]),
+                'train': T.Compose([T.RandomRotate(180, axis=2),
+                                    T.RandomJitter(0.001),
+                                    T.NormalizeScale()]),
                 'test': T.Compose([T.NormalizeScale()])
                 }
         
