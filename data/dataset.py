@@ -641,9 +641,6 @@ class H3DDataset(Dataset):
         }
                     
     def process(self):        
-        def _centroids(V, F):
-            return (V[F[:, 0]] + V[F[:, 1]] + V[F[:, 2]]) / 3.0
-
         for id, folder in enumerate(self.processed_file_names):
             Path(self.processed_paths[id]).mkdir(parents=True, exist_ok=True)
             
@@ -657,13 +654,13 @@ class H3DDataset(Dataset):
                 rms.set_current_mesh(0)
                 rms.current_mesh().compact()
                 rms.meshing_decimation_quadric_edge_collapse_with_texture(
-                    targetperc=0.75, 
+                    targetperc=0.5, 
                     qualitythr=0.9,
                     extratcoordw=1.0,
                     preserveboundary=True,
                     optimalplacement=True,
                     preservenormal=True,
-                    planarquadric=True
+                    planarquadric=False
                 )
 
                 faces = rms.current_mesh().face_matrix()
@@ -684,9 +681,9 @@ class H3DDataset(Dataset):
                 lms.current_mesh().compact()
                 lms_f = lms.current_mesh().face_matrix()
                 lms_v = lms.current_mesh().vertex_matrix()
-
-                lms_c = _centroids(lms_v, lms_f)     
-                rms_c = _centroids(vertices, faces)     
+    
+                lms_c = np.asarray(trimesh.Trimesh(lms_v, lms_f).triangles_center) 
+                rms_c = np.asarray(trimesh.Trimesh(vertices, faces).triangles_center)
                 tree = cKDTree(lms_c)
                 _, idx = tree.query(rms_c, k=1)
 
