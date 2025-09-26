@@ -7,7 +7,7 @@ import pymeshlab as pml
 import torch
 import torch_geometric.transforms as T
 
-from typing import Union, List
+from typing import Union
 from pathlib import Path
 from tqdm import tqdm
 
