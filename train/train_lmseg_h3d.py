@@ -39,9 +39,12 @@ if __name__ == '__main__':
         print(yaml.dump(cfg, sort_keys=False, default_flow_style=False))
         print("="*25 + "\n")
         
-        train_set = H3DDataset(root=args.root, split='train')
-        val_set = H3DDataset(root=args.root, split='val')
-                    
+        epochs = ['Epoch_March2019', 'Epoch_November2018', 'Epoch_March2018']
+        train_data = [H3DDataset(root=args.root, split='train', epoch=ep) for ep in epochs]
+        train_set = [data for dataset in train_data for data in dataset]
+        
+        val_set = H3DDataset(root=args.root, split='val', epoch='Epoch_March2018')
+             
         train_loader = DataLoader(train_set, 
                                   batch_size=cfg['batch'], 
                                   shuffle=True, 
@@ -93,13 +96,13 @@ if __name__ == '__main__':
                              cfg['alpha'], 
                              cfg['beta'],
                              cfg['load_feature'])
-        
+        ignore_index = 11
         all_labels = torch.cat([data.y for data in train_set])
         class_freq = torch.bincount(all_labels, minlength=cfg['out_channels']).float()
         class_weight = 1.0 / torch.log(1.2 + (class_freq / class_freq.sum()))
-        class_weight[11] = 0.0
+        class_weight[ignore_index] = 0.0
 
-        loss = CrossEntropyWithLabelWeight(ignore_index=11, 
+        loss = CrossEntropyWithLabelWeight(ignore_index=ignore_index, 
                                            label_smoothing=0.1, 
                                            label_weights=class_weight)
         
@@ -112,15 +115,15 @@ if __name__ == '__main__':
         metric_dict = {
             'OA': Accuracy(task="multiclass", 
                            num_classes=cfg['out_channels'], 
-                           ignore_index=11,
+                           ignore_index=ignore_index,
                            average='micro'),
             'mF1': F1Score(task="multiclass", 
                            num_classes=cfg['out_channels'], 
-                           ignore_index=11,
+                           ignore_index=ignore_index,
                            average='macro'),
             'F1': F1Score(task="multiclass", 
                           num_classes=cfg['out_channels'], 
-                          ignore_index=11,
+                          ignore_index=ignore_index,
                           average=None),
         }
         trainer.eval(model, 
