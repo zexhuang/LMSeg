@@ -115,7 +115,7 @@ class Trainer(BaseTrainer):
         total_loss = 0.0
 
         for data in dataloader:
-            data = data.to(self.device, non_blocking=True)
+            data = data.to(device, non_blocking=True)
             optimizer.zero_grad()
             out = model(data)
             loss = criterion(out['y'], data['y'])
@@ -131,7 +131,7 @@ class Trainer(BaseTrainer):
 
         with torch.no_grad():
             for data in dataloader:
-                data = data.to(self.device, non_blocking=True)
+                data = data.to(device, non_blocking=True)
                 out = model(data)
                 loss = criterion(out['y'], data['y'])
                 total_loss += len(data) * loss.item()
@@ -225,7 +225,7 @@ class KPConvTrainer(BaseTrainer):
         total_loss = 0.0
 
         for data in dataloader:
-            data = self._to_device(data, device)
+            data = data.to(device, non_blocking=True)
             optimizer.zero_grad()
             out = model(data)
             loss = criterion(out, data['labels'])
@@ -241,7 +241,7 @@ class KPConvTrainer(BaseTrainer):
 
         with torch.no_grad():
             for data in dataloader:
-                data = self._to_device(data, device)
+                data = data.to(device, non_blocking=True)
                 out = model(data)
                 loss = criterion(out, data['labels'])
                 total_loss += len(data) * loss.item()
@@ -269,7 +269,7 @@ class KPConvTrainer(BaseTrainer):
 
         with torch.no_grad():
             for data in dataloader:
-                data = self._to_device(data)
+                data = data.to(self.device, non_blocking=True)
                 out = model(data)
                 for name, cm in metric.items():
                     cm.update(out, data['labels'].long())
@@ -284,15 +284,6 @@ class KPConvTrainer(BaseTrainer):
                     print(f"{name}: [{formatted_values}]")
 
         return metric
-
-    def _to_device(self, data, device=None):
-        device = device or self.device
-        for k, v in data.items():
-            if isinstance(v, list):
-                data[k] = [item.to(device) for item in v]
-            else:
-                data[k] = v.to(device, non_blocking=True)
-        return data
 
 
 # Code adapoted from https://github.com/Bjarten/early-stopping-pytorch
