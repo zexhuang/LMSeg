@@ -1,0 +1,15 @@
+.vscode
+.DS_Store
+__pycache__
+*/__pycache__
+
+output
+save/*
+data/*
+kernels/*
+KPConv
+
+!data/budjbim.py
+!data/csf.py
+!data/dataset.py
+!data/sum.py
