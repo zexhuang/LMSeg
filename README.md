@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Semantic segmentation of large-scale 3D landscape meshes is critical for geospatial analysis in complex environments, yet existing approaches face persistent challenges of scalability, end-to-end trainability, and accurate segmentation of small and irregular objects. To address these issues, we introduce the BudjBim Wall (BBW) dataset, a large-scale annotated mesh dataset derived from high-resolution LiDAR scans of the UNESCO World Heritage-listed Budj Bim cultural landscape in Victoria, Australia. The BBW dataset captures historic dry-stone wall structures that are difficult to detect under vegetation occlusion, supporting research in underrepresented cultural heritage contexts. Building on this dataset, we propose LMSeg, a deep graph message-passing network for semantic segmentation of large-scale meshes. LMSeg employs a barycentric dual graph representation of mesh faces and introduces the Geometry Aggregation+ (GA+) module, a learnable softmax-based operator that adaptively combines neighborhood features and captures high-frequency geometric variations. A hierarchical–local dual pooling integrates hierarchical and local geometric aggregation to balance global context with fine-detail preservation. Experiments on two large-scale benchmarks—SUM (urban) and BBW (natural)—show that LMSeg achieves 75.1\% mIoU on SUM and 62.4\% mIoU on BBW with only 2.4M parameters, outperforming strong point- and graph-based baselines. In particular, LMSeg excels on small-object classes (e.g., vehicles, high vegetation) and successfully detects dry-stone walls in dense natural environments. Together, the BBW dataset and LMSeg provide a practical and extensible method for advancing 3D mesh segmentation in cultural heritage, environmental monitoring, and urban applications.
+Semantic segmentation of large-scale 3D landscape meshes is critical for geospatial analysis in complex environments, yet existing approaches face persistent challenges of scalability, end-to-end trainability, and accurate segmentation of small and irregular objects. To address these issues, we introduce the BudjBim Wall (BBW) dataset, a large-scale annotated mesh dataset derived from high-resolution LiDAR scans of the UNESCO World Heritage-listed Budj Bim cultural landscape in Victoria, Australia. The BBW dataset captures historic dry-stone wall structures that are difficult to detect under vegetation occlusion, supporting research in underrepresented cultural heritage contexts. Building on this dataset, we propose LMSeg, a deep graph message-passing network for semantic segmentation of large-scale meshes. LMSeg employs a barycentric dual graph representation of mesh faces and introduces the Geometry Aggregation+ (GA+) module, a learnable softmax-based operator that adaptively combines neighborhood features and captures high-frequency geometric variations. A hierarchical–local dual pooling integrates hierarchical and local geometric aggregation to balance global context with fine-detail preservation. Experiments on three large-scale benchmarks (SUM, H3D, and BBW) show that LMSeg achieves 75.1% mIoU on SUM, 78.4% O.A. on H3D, and 62.4% mIoU on BBW, using only 2.4M lightweight parameters and outperforming strong point- and graph-based baselines. In particular, LMSeg demonstrates accurate segmentation across both urban and natural scenes—capturing small-object classes such as vehicles and high vegetation in complex city environments, while also reliably detecting dry-stone walls in dense, occluded rural landscapes. Together, the BBW dataset and LMSeg provide a practical and extensible method for advancing 3D mesh segmentation in cultural heritage, environmental monitoring, and urban applications.
 
 ## Netowrk Architecture of LMSeg
 
@@ -132,15 +132,15 @@ and
 
 ## License
 
-The data in this repository is licensed under the [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+The data in this repository is licensed under the [Creative Commons Attribution–NonCommercial 4.0 International (CC BY-NC 4.0)](https://creativecommons.org/licenses/by-nc/4.0/).
 
 ## Citation
 
 ```text
 @misc{huang2024lmsegdeepgraphmessagepassing,
-      title={LMSeg: A deep graph message-passing network for efficient and accurate semantic segmentation of large-scale 3D landscape meshes}, 
-      author={Zexian Huang and Kourosh Khoshelham and Gunditj Mirring Traditional Owners Corporation and Martin Tomko},
-      year={2024},
+      title={LMSeg: An end-to-end geometric message-passing network on barycentric dual graphs for large-scale landscape mesh segmentation}, 
+      author={Zexian Huang and Kourosh Khoshelham and Martin Tomko},
+      year={2025},
       eprint={2407.04326},
       archivePrefix={arXiv},
       primaryClass={cs.CV},
