@@ -137,13 +137,14 @@ The data in this repository is licensed under the [Creative Commons Attributionâ
 ## Citation
 
 ```text
-@misc{huang2024lmsegdeepgraphmessagepassing,
-      title={LMSeg: An end-to-end geometric message-passing network on barycentric dual graphs for large-scale landscape mesh segmentation}, 
-      author={Zexian Huang and Kourosh Khoshelham and Martin Tomko},
-      year={2025},
-      eprint={2407.04326},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2407.04326}, 
+@article{huang2025lmseg,
+  title={LMSeg: an end-to-end geometric message-passing network on barycentric dualgraphs for large-scale landscape mesh segmentation},
+  author={Huang, Zexian and Khoshelham, Kourosh and Tomko, Martin},
+  journal={GIScience \& Remote Sensing},
+  volume={62},
+  number={1},
+  pages={2584806},
+  year={2025},
+  publisher={Taylor \& Francis}
 }
 ```
